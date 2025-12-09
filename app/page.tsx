@@ -58,7 +58,7 @@ export default function Home() {
 
       <button
         onClick={handleResetLocation}
-        className="absolute bottom-24 right-4 z-10 p-3 bg-white dark:bg-gray-900 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="absolute bottom-24 right-4 z-10 p-4 bg-white/90 backdrop-blur-md rounded-full shadow-soft-1 hover:shadow-soft-2 hover:scale-105 transition-all duration-300 active:scale-95"
         aria-label="重置位置"
       >
         <Locate className="w-6 h-6 text-blue-600" />

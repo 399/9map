@@ -101,8 +101,24 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         markersRef.current = [];
 
         places.forEach((place) => {
+            const emoji = place.category === 'food' ? '🍔' : '📸';
+            const content = `
+        <div style="
+          font-size: 36px; 
+          filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15)); 
+          transform: translateY(-50%);
+          cursor: pointer;
+          transition: transform 0.2s;
+        " onmouseover="this.style.transform='translateY(-60%) scale(1.1)'" onmouseout="this.style.transform='translateY(-50%) scale(1)'">
+          ${emoji}
+        </div>
+      `;
+
             const marker = new AMap.Marker({
                 position: new AMap.LngLat(place.location[0], place.location[1]),
+                content: content,
+                anchor: 'center',
+                offset: new AMap.Pixel(0, 0),
                 title: place.name,
             });
 

@@ -10,7 +10,7 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
     if (!place) return null;
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 rounded-t-2xl shadow-lg transform transition-transform duration-300 ease-in-out p-6 pb-10 max-h-[50vh] overflow-y-auto">
+        <div className="fixed bottom-6 left-4 right-4 z-50 bg-white/90 backdrop-blur-xl rounded-card-lg shadow-soft-1 transform transition-transform duration-300 ease-in-out p-6 pb-8 max-h-[50vh] overflow-y-auto border border-white/50">
             <div className="flex justify-between items-start mb-4">
                 <div>
                     <h2 className="text-xl font-bold">{place.name}</h2>
