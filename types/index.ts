@@ -1,4 +1,4 @@
-export type PlaceCategory = 'food' | 'sight';
+export type PlaceCategory = 'restaurant' | 'drink' | 'snack' | 'other';
 
 export interface Place {
     id: string;
@@ -6,6 +6,7 @@ export interface Place {
     category: PlaceCategory;
     location: [number, number]; // [lng, lat]
     address: string;
+    city?: string;
     note?: string;
 }
 

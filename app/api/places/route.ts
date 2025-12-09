@@ -1,60 +1,80 @@
 import { NextResponse } from 'next/server';
-import { Place } from '@/types';
-
-const MOCK_PLACES: Place[] = [
-    {
-        id: '1',
-        name: '外滩',
-        category: 'sight',
-        location: [121.4905, 31.2325],
-        address: '上海市黄浦区中山东一路',
-        note: '欣赏黄浦江对岸陆家嘴天际线的最佳位置。',
-    },
-    {
-        id: '2',
-        name: '东方明珠',
-        category: 'sight',
-        location: [121.4998, 31.2397],
-        address: '上海市浦东新区世纪大道1号',
-        note: '上海的地标性建筑，可以俯瞰全城。',
-    },
-    {
-        id: '3',
-        name: '豫园',
-        category: 'sight',
-        location: [121.4920, 31.2270],
-        address: '上海市黄浦区福佑路168号',
-        note: '典型的江南园林，旁边就是城隍庙。',
-    },
-    {
-        id: '4',
-        name: '武康路',
-        category: 'sight',
-        location: [121.4385, 31.2065],
-        address: '上海市徐汇区武康路',
-        note: '网红打卡地，有很多历史建筑和咖啡馆。',
-    },
-    {
-        id: '5',
-        name: '佳家汤包',
-        category: 'food',
-        location: [121.4750, 31.2330],
-        address: '上海市黄浦区黄河路90号',
-        note: '必吃的上海小笼包，蟹粉鲜肉味道一绝。',
-    },
-    {
-        id: '6',
-        name: '小杨生煎',
-        category: 'food',
-        location: [121.4600, 31.2300],
-        address: '上海市静安区吴江路269号',
-        note: '皮薄底脆，汤汁浓郁的生煎包。',
-    },
-];
+import { Place, PlaceCategory } from '@/types';
+import { client, FEISHU_APP_TOKEN, FEISHU_TABLE_ID } from '@/lib/feishu';
 
 export async function GET() {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    try {
+        // If Feishu config is missing, return empty or error
+        if (!FEISHU_APP_TOKEN || !FEISHU_TABLE_ID) {
+            console.warn('Feishu config missing');
+            return NextResponse.json({ data: [] });
+        }
 
-    return NextResponse.json({ data: MOCK_PLACES });
+        const res = await client.bitable.appTableRecord.list({
+            path: {
+                app_token: FEISHU_APP_TOKEN,
+                table_id: FEISHU_TABLE_ID,
+            },
+            params: {
+                page_size: 100,
+            },
+        });
+
+        if (!res.data?.items) {
+            return NextResponse.json({ data: [] });
+        }
+
+        const places: Place[] = res.data.items
+            .map((item) => {
+                const fields = item.fields as any;
+                // DEBUG: Log category to check value
+                // console.log('Category value:', fields['category']);
+
+                // Parse Feishu "Location" field
+                // Expected structure: { location: "lng,lat", address: "...", cityname: "...", ... }
+                let lng = 0;
+                let lat = 0;
+                let address = fields['address'] || '';
+                let city = fields['city'] || ''; // Keep manual override if exists
+
+                const locationField = fields['location']; // Field name must be 'location'
+                if (locationField && typeof locationField === 'object' && locationField.location) {
+                    const [lngStr, latStr] = locationField.location.split(',');
+                    lng = Number(lngStr);
+                    lat = Number(latStr);
+
+                    // Use address from Location field if explicit address field is empty
+                    if (!address && locationField.address) {
+                        address = locationField.address;
+                    }
+
+                    // Use cityname from Location field if manual city is empty
+                    if (!city && locationField.cityname) {
+                        city = locationField.cityname;
+                    }
+                }
+
+                let category: PlaceCategory = 'other';
+                const rawCategory = fields['category'];
+                if (rawCategory === '餐厅') category = 'restaurant';
+                else if (rawCategory === '饮品甜点') category = 'drink';
+                else if (rawCategory === '快餐小吃') category = 'snack';
+
+                return {
+                    id: item.record_id || '',
+                    name: fields['name'] || '',
+                    category: category,
+                    location: [lng, lat] as [number, number],
+                    address: address,
+                    city: city || '上海市', // Default to Shanghai (Chinese) if still missing
+                    note: fields['note'] || '',
+                };
+            })
+            .filter((place) => place.name && place.location[0] !== 0); // Filter out empty records
+
+        return NextResponse.json({ data: places });
+    } catch (error) {
+        console.error('Feishu API Error:', error);
+        return NextResponse.json({ data: [], error: 'Failed to fetch data' }, { status: 500 });
+    }
 }

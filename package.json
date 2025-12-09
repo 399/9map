@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@amap/amap-jsapi-loader": "^1.0.1",
+    "@larksuiteoapi/node-sdk": "^1.55.0",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.3",
     "lucide-react": "^0.555.0",
     "next": "16.0.6",
     "react": "19.2.0",
