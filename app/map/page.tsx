@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import SearchBar from '@/components/SearchBar';
 import PlaceSheet from '@/components/PlaceSheet';
 import { Place } from '@/types';
 import { Locate, ArrowLeft } from 'lucide-react';
@@ -19,7 +18,6 @@ import { useSearchParams } from 'next/navigation';
 
 function MapContent() {
   const [places, setPlaces] = useState<Place[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const mapRef = useRef<MapRef>(null);
   const searchParams = useSearchParams();
@@ -45,15 +43,6 @@ function MapContent() {
     fetchPlaces();
   }, [cityParam]);
 
-  const filteredPlaces = useMemo(() => {
-    const lowerQuery = searchQuery.toLowerCase();
-    return places.filter(
-      (place) =>
-        place.name.toLowerCase().includes(lowerQuery) ||
-        place.address.toLowerCase().includes(lowerQuery)
-    );
-  }, [searchQuery, places]);
-
   const handleResetLocation = () => {
     if (mapRef.current) {
       mapRef.current.resetLocation();
@@ -62,21 +51,18 @@ function MapContent() {
 
   return (
     <main className="relative w-full h-[100dvh] overflow-hidden">
-      <div className="absolute top-4 left-4 right-4 z-10 flex gap-3 pointer-events-none">
+      <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 right-4 z-10 flex gap-3 pointer-events-none">
         <Link
           href="/"
           className="pointer-events-auto w-12 h-12 bg-white/80 backdrop-blur-md rounded-card shadow-soft-1 flex items-center justify-center text-gray-600 hover:text-apricot transition-colors"
         >
           <ArrowLeft size={24} />
         </Link>
-        <div className="flex-1 pointer-events-auto">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
-        </div>
       </div>
 
       <MapComponent
         ref={mapRef}
-        places={filteredPlaces}
+        places={places}
         onMarkerClick={setSelectedPlace}
         selectedPlaceId={selectedPlace?.id}
         targetCity={cityParam || undefined}

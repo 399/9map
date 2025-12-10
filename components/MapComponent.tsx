@@ -63,9 +63,6 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             plugins: ['AMap.Geolocation', 'AMap.Scale', 'AMap.ToolBar', 'AMap.DistrictSearch'],
         })
             .then((AMap) => {
-                console.log('🗺️ Initializing Map with Style:', 'amap://styles/2f982f55e3d2aec568eb102f639eb83e');
-                console.log('🔐 Security Config:', (window as any)._AMapSecurityConfig);
-
                 const map = new AMap.Map(mapContainer.current, {
                     viewMode: '3D',
                     zoom: 11,
@@ -87,7 +84,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                         zoomToAccuracy: true,
                         position: 'RB',
                     });
-                    map.addControl(geolocation);
+                    // map.addControl(geolocation);
                     geolocation.getCurrentPosition();
                 });
             })
