@@ -8,6 +8,8 @@ export interface Place {
     address: string;
     city?: string;
     note?: string;
+    recommended_dishes?: string;
+    avoid_dishes?: string;
 }
 
 export interface PlacesResponse {

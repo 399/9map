@@ -63,11 +63,18 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             plugins: ['AMap.Geolocation', 'AMap.Scale', 'AMap.ToolBar', 'AMap.DistrictSearch'],
         })
             .then((AMap) => {
+                console.log('🗺️ Initializing Map with Style:', 'amap://styles/2f982f55e3d2aec568eb102f639eb83e');
+                console.log('🔐 Security Config:', (window as any)._AMapSecurityConfig);
+
                 const map = new AMap.Map(mapContainer.current, {
                     viewMode: '3D',
                     zoom: 11,
                     center: [121.4737, 31.2304], // Default Shanghai
+                    mapStyle: 'amap://styles/2f982f55e3d2aec568eb102f639eb83e',
                 });
+
+                // Explicitly set style again to be sure
+                map.setMapStyle('amap://styles/2f982f55e3d2aec568eb102f639eb83e');
 
                 mapInstance.current = map;
                 setIsMapReady(true);

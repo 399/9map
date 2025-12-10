@@ -41,14 +41,14 @@ export default function Gallery() {
                 const cityCards: CityMap[] = Object.entries(cityGroups).map(([city, count]) => {
                     let displayTitle = city;
                     let englishTitle = 'CITY';
-                    let imagePath = '/city/上海.png'; // Default fallback
+                    let imagePath = '/city/上海.jpg'; // Default fallback
                     let skyColor = 'bg-blue-200'; // Default sky
 
                     // Mapping logic
                     if (city.includes('上海')) {
                         displayTitle = '上海';
                         englishTitle = 'SHANGHAI';
-                        imagePath = '/city/上海.png';
+                        imagePath = '/city/上海.jpg';
                         skyColor = 'bg-[#87CEEB]'; // Sky blue
                     } else if (city.includes('杭州')) {
                         displayTitle = '杭州';
@@ -145,7 +145,7 @@ export default function Gallery() {
                                 </div>
 
                                 {/* 3. Info Overlay (Top Layer) */}
-                                <div className="absolute inset-x-0 bottom-0 z-20 p-6 backdrop-blur-md bg-white/10 border-t border-white/20">
+                                <div className="absolute inset-x-0 bottom-0 z-20 p-6 backdrop-blur-md bg-white/10 border-t border-white/20 rounded-b-[32px]">
                                     <div className="text-white">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-2xl font-bold tracking-wide drop-shadow-md">{map.title}</span>

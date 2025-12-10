@@ -68,6 +68,8 @@ export async function GET() {
                     address: address,
                     city: city || '上海市', // Default to Shanghai (Chinese) if still missing
                     note: fields['note'] || '',
+                    recommended_dishes: fields['recommended_dishes'] || '',
+                    avoid_dishes: fields['avoid_dishes'] || '',
                 };
             })
             .filter((place) => place.name && place.location[0] !== 0); // Filter out empty records

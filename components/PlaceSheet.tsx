@@ -29,9 +29,9 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                     <div>
                         <h2 className="text-xl font-bold">{place.name}</h2>
                         <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${place.category === 'restaurant' ? 'bg-orange-100 text-orange-800' :
-                                place.category === 'drink' ? 'bg-blue-100 text-blue-800' :
-                                    place.category === 'snack' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-gray-100 text-gray-800'
+                            place.category === 'drink' ? 'bg-blue-100 text-blue-800' :
+                                place.category === 'snack' ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-gray-100 text-gray-800'
                             }`}>
                             {
                                 place.category === 'restaurant' ? '餐厅' :
@@ -51,6 +51,16 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                 <div>
                     <h3 className="text-sm font-semibold text-gray-500">地址</h3>
                     <p>{place.address}</p>
+                </div>
+
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-500">推荐菜</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{place.recommended_dishes || '暂无'}</p>
+                </div>
+
+                <div>
+                    <h3 className="text-sm font-semibold text-gray-500">避雷菜</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{place.avoid_dishes || '暂无'}</p>
                 </div>
 
                 {place.note && (
