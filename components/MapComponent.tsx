@@ -67,11 +67,14 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                     viewMode: '3D',
                     zoom: 11,
                     center: [121.4737, 31.2304], // Default Shanghai
-                    mapStyle: 'amap://styles/2f982f55e3d2aec568eb102f639eb83e',
+                    mapStyle: 'amap://styles/light',
                 });
 
+                // Set features to show only background and roads (hide buildings and points)
+                map.setFeatures(['bg', 'road']);
+
                 // Explicitly set style again to be sure
-                map.setMapStyle('amap://styles/2f982f55e3d2aec568eb102f639eb83e');
+                map.setMapStyle('amap://styles/light');
 
                 mapInstance.current = map;
                 setIsMapReady(true);

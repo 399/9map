@@ -10,6 +10,9 @@ export interface Place {
     note?: string;
     recommended_dishes?: string;
     avoid_dishes?: string;
+    tags?: string[];
+    opening_hours?: string;
+    average_price?: string;
 }
 
 export interface PlacesResponse {

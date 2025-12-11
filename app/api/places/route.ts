@@ -70,6 +70,9 @@ export async function GET() {
                     note: fields['note'] || '',
                     recommended_dishes: fields['recommended_dishes'] || '',
                     avoid_dishes: fields['avoid_dishes'] || '',
+                    tags: fields['tags'] ? (Array.isArray(fields['tags']) ? fields['tags'] : [fields['tags']]) : [],
+                    opening_hours: fields['opening_hours'] || '',
+                    average_price: fields['average_price'] || '',
                 };
             })
             .filter((place) => place.name && place.location[0] !== 0); // Filter out empty records
