@@ -26,25 +26,16 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     const maskRef = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const borderRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [userLocation, setUserLocation] = useState<any>(null);
+    const [locationFailed, setLocationFailed] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const geolocationRef = useRef<any>(null);
 
     useImperativeHandle(ref, () => ({
         resetLocation: () => {
-            if (mapInstance.current) {
-                mapInstance.current.plugin('AMap.Geolocation', function () {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const geolocation = new (window as any).AMap.Geolocation({
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        zoomToAccuracy: true,
-                    });
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    geolocation.getCurrentPosition((status: string, result: any) => {
-                        if (status === 'complete') {
-                            mapInstance.current.setCenter(result.position);
-                            mapInstance.current.setZoom(15);
-                        }
-                    });
-                });
+            if (geolocationRef.current) {
+                geolocationRef.current.getCurrentPosition();
             }
         },
     }));
@@ -79,17 +70,46 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                 mapInstance.current = map;
                 setIsMapReady(true);
 
-                // Geolocation on load
-                map.plugin('AMap.Geolocation', function () {
-                    const geolocation = new AMap.Geolocation({
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        zoomToAccuracy: true,
-                        position: 'RB',
+                // Geolocation Logic with Fallback
+                const initGeolocation = (useHighAccuracy: boolean) => {
+                    map.plugin('AMap.Geolocation', function () {
+                        // Cleanup previous instance if any (though we usually only have one active)
+                        if (geolocationRef.current) {
+                            map.removeControl(geolocationRef.current);
+                        }
+
+                        const geolocation = new AMap.Geolocation({
+                            enableHighAccuracy: useHighAccuracy,
+                            timeout: 10000,
+                            position: 'RB',
+                            offset: [10, 20],
+                            zoomToAccuracy: false, // Handle zoom manually
+                            showButton: false, // Hide default button
+                        });
+
+                        geolocation.on('complete', (result: any) => {
+                            console.log(`📍 Geolocation Success (${useHighAccuracy ? 'High' : 'Low'} Accuracy):`, result);
+                            setUserLocation(result);
+                        });
+
+                        geolocation.on('error', (err: any) => {
+                            if (useHighAccuracy) {
+                                console.warn('⚠️ High accuracy failed, falling back to low accuracy...', err);
+                                initGeolocation(false);
+                            } else {
+                                console.warn('📍 Geolocation failed completely. Defaulting to map view.', err);
+                                setLocationFailed(true);
+                            }
+                        });
+
+                        map.addControl(geolocation);
+                        geolocationRef.current = geolocation;
+                        geolocation.getCurrentPosition();
                     });
-                    // map.addControl(geolocation);
-                    geolocation.getCurrentPosition();
-                });
+                };
+
+                // Start with high accuracy
+                initGeolocation(true);
             })
             .catch((e) => {
                 console.error('Map loading failed', e);
@@ -299,92 +319,74 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
 
     // Smart Location Centering
     useEffect(() => {
-        if (!isMapReady || !mapInstance.current || places.length === 0) return;
+        if (!isMapReady || !mapInstance.current) return;
+        if (!userLocation && !locationFailed) return; // Wait for geolocation result (success or fail)
 
-        const map = mapInstance.current;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const AMap = (window as any).AMap;
+        const map = mapInstance.current;
+        const result = userLocation;
 
-        map.plugin('AMap.Geolocation', function () {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const geolocation = new (window as any).AMap.Geolocation({
-                enableHighAccuracy: true,
-                timeout: 5000,
-                zoomToAccuracy: false, // We handle zoom manually
-            });
+        let shouldCenterOnUser = false;
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            geolocation.getCurrentPosition((status: string, result: any) => {
-                console.log('📍 Geolocation Status:', status);
-                console.log('📍 Geolocation Result:', result);
+        if (result) {
+            // Strategy 1: Check City Name (Best for explicit city matching)
+            if (result.addressComponent) {
+                const userCity = result.addressComponent.city || result.addressComponent.province;
+                const target = targetCity || '上海市';
 
-                let shouldCenterOnUser = false;
+                console.log('📍 User City:', userCity);
+                console.log('📍 Target City:', target);
 
-                if (status === 'complete' && result) {
-                    // Strategy 1: Check City Name (Best for explicit city matching)
-                    if (result.addressComponent) {
-                        const userCity = result.addressComponent.city || result.addressComponent.province;
-                        const target = targetCity || '上海市';
-
-                        console.log('📍 User City:', userCity);
-                        console.log('📍 Target City:', target);
-
-                        if (userCity && target && (userCity.includes(target) || target.includes(userCity))) {
-                            shouldCenterOnUser = true;
-                        }
-                    }
-
-                    // Strategy 2: Distance Check (Fallback if city name fails or is blocked)
-                    // If user is within 50km of the first place, assume they are in the same city.
-                    if (!shouldCenterOnUser && result.position && places.length > 0) {
-                        const userLocation = result.position; // AMap.LngLat
-                        const firstPlace = places[0];
-                        const placeLocation = new AMap.LngLat(firstPlace.location[0], firstPlace.location[1]);
-
-                        const distance = userLocation.distance(placeLocation); // Meters
-                        console.log('📍 Distance to first place:', distance, 'meters');
-
-                        if (distance < 50000) { // 50km threshold
-                            shouldCenterOnUser = true;
-                            console.log('📍 Within 50km, centering on user.');
-                        }
-                    }
+                if (userCity && target && (userCity.includes(target) || target.includes(userCity))) {
+                    shouldCenterOnUser = true;
                 }
+            }
 
-                console.log('📍 Should Center on User:', shouldCenterOnUser);
+            // Strategy 2: Distance Check (Fallback if city name fails or is blocked)
+            // If user is within 50km of the first place, assume they are in the same city.
+            if (!shouldCenterOnUser && result.position && places.length > 0) {
+                const userLocationLngLat = result.position; // AMap.LngLat
+                const firstPlace = places[0];
+                const placeLocation = new AMap.LngLat(firstPlace.location[0], firstPlace.location[1]);
 
-                if (shouldCenterOnUser) {
-                    // User is in the city -> Center on user
-                    console.log('📍 Centering on User Position:', result.position);
-                    map.setCenter(result.position);
-                    map.setZoom(15);
-                } else {
-                    // User is NOT in the city (or geo failed) -> Fit all places
-                    // Since we use viewport filtering, markers might not exist.
-                    // We calculate bounds from data.
-                    if (places.length > 0) {
-                        let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
-                        places.forEach(p => {
-                            const [lng, lat] = p.location;
-                            if (lng < minLng) minLng = lng;
-                            if (lng > maxLng) maxLng = lng;
-                            if (lat < minLat) minLat = lat;
-                            if (lat > maxLat) maxLat = lat;
-                        });
+                const distance = userLocationLngLat.distance(placeLocation); // Meters
+                console.log('📍 Distance to first place:', distance, 'meters');
 
-                        const bounds = new AMap.Bounds(
-                            new AMap.LngLat(minLng, minLat),
-                            new AMap.LngLat(maxLng, maxLat)
-                        );
-                        map.setBounds(bounds);
-                        // Adjust zoom slightly to ensure padding
-                        // map.setFitView() usually does this, setBounds might be tight.
-                        // But it's good enough for now.
-                    }
+                if (distance < 50000) { // 50km threshold
+                    shouldCenterOnUser = true;
+                    console.log('📍 Within 50km, centering on user.');
                 }
-            });
-        });
-    }, [isMapReady, places, targetCity]); // Re-run when city changes
+            }
+        }
+
+        console.log('📍 Should Center on User:', shouldCenterOnUser);
+
+        if (shouldCenterOnUser && result) {
+            // User is in the city -> Center on user
+            console.log('📍 Centering on User Position:', result.position);
+            map.setCenter(result.position);
+            map.setZoom(15);
+        } else {
+            // User is NOT in the city OR Geolocation Failed -> Fit all places
+            if (places.length > 0) {
+                let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
+                places.forEach(p => {
+                    const [lng, lat] = p.location;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                });
+
+                const bounds = new AMap.Bounds(
+                    new AMap.LngLat(minLng, minLat),
+                    new AMap.LngLat(maxLng, maxLat)
+                );
+                map.setBounds(bounds);
+            }
+        }
+    }, [isMapReady, userLocation, locationFailed, places, targetCity]);
 
     // City Boundary Masking
     useEffect(() => {
