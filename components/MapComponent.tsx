@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
 import AMapLoader from '@amap/amap-jsapi-loader';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { ForkKnife, Hamburger, Coffee, MapPin } from '@phosphor-icons/react';
 import { Place } from '@/types';
 
 interface MapComponentProps {
@@ -124,18 +126,29 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
 
     // Helper to generate marker content
     const getMarkerContent = (place: Place, isSelected: boolean) => {
-        let iconContent = '';
+        let IconComponent = MapPin;
+        let iconColor = '#6b7280'; // gray-500
 
-        // Increased icon size to 32px (from 28px)
         if (place.category === 'restaurant') {
-            iconContent = `<img src="/icon/餐厅.png" style="width: 32px; height: 32px; object-fit: contain;" />`;
+            IconComponent = ForkKnife;
+            iconColor = '#374151'; // gray-700
         } else if (place.category === 'drink') {
-            iconContent = `<img src="/icon/饮品甜点.png" style="width: 32px; height: 32px; object-fit: contain;" />`;
+            IconComponent = Coffee;
+            iconColor = '#374151'; // gray-700
         } else if (place.category === 'snack') {
-            iconContent = `<img src="/icon/快餐小吃.png" style="width: 32px; height: 32px; object-fit: contain;" />`;
-        } else {
-            iconContent = '<div style="font-size: 28px;">📍</div>';
+            IconComponent = Hamburger;
+            iconColor = '#374151'; // gray-700
         }
+
+        // Generate static HTML for the icon
+        const iconHtml = renderToStaticMarkup(
+            <IconComponent
+                size={20}
+                weight="fill"
+                color={iconColor}
+                style={{ display: 'block' }}
+            />
+        );
 
         const selectedShadow = '0 8px 20px rgba(0,0,0,0.25), 0 0 0 2px rgba(255,165,0,0.6)';
         const normalShadow = '0 4px 12px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)';
@@ -161,8 +174,16 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         ">
           <div class="marker-icon" style="
             box-shadow: ${shadow};
+            background-color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(0,0,0,0.05);
           ">
-            ${iconContent}
+            ${iconHtml}
           </div>
           <div class="marker-label" style="
             opacity: ${isSelected ? 1 : 0.9};

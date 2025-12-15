@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Place } from '@/types';
-import { X, Clock, MapPin, ChevronUp, ChevronDown, Quote, Utensils, Coffee, Sandwich, Store, CalendarPlus, CircleParking, Sofa } from 'lucide-react';
+import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin } from '@phosphor-icons/react';
 
 interface PlaceSheetProps {
     place: Place | null;
@@ -30,19 +30,38 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
         setIsExpanded(true);
     };
 
+    const handleCollapse = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        setIsExpanded(false);
+    };
+
     const handleClose = (e: React.MouseEvent) => {
         e.stopPropagation();
         onClose();
     };
 
-    // Category helper
+    // Get icon for category
     const getCategoryIcon = () => {
-        if (place.category === 'restaurant') return <Utensils className="w-8 h-8 text-orange-500" />;
-        if (place.category === 'drink') return <Coffee className="w-8 h-8 text-blue-500" />;
-        if (place.category === 'snack') return <Sandwich className="w-8 h-8 text-yellow-500" />;
-        return <MapPin className="w-8 h-8 text-gray-500" />;
-    };
+        const category = place.category;
 
+        // Custom icon for "Restaurant"
+        if (category === 'restaurant') {
+            return (
+                <img
+                    src="/icon/noodles.png"
+                    alt="餐厅"
+                    className="w-16 h-16 object-contain"
+                />
+            );
+        }
+
+        // Default for other categories
+        switch (category) {
+            case 'drink': return <Coffee size={24} className="text-gray-600" />;
+            case 'snack': return <Hamburger size={24} className="text-gray-600" />;
+            default: return <ForkKnife size={24} className="text-gray-600" />;
+        }
+    };
     const getCategoryLabel = () => {
         if (place.category === 'restaurant') return '餐厅';
         if (place.category === 'drink') return '饮品甜点';
@@ -58,10 +77,18 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
     };
 
     const getTagIcon = (tag: string) => {
-        if (tag.includes('连锁')) return <Store size={12} className="mr-1" />;
-        if (tag.includes('预定')) return <CalendarPlus size={12} className="mr-1" />;
-        if (tag.includes('停车')) return <CircleParking size={12} className="mr-1" />;
-        if (tag.includes('包间')) return <Sofa size={12} className="mr-1" />;
+        const TAG_ICONS: Record<string, React.ReactNode> = {
+            '连锁': <Storefront size={14} className="text-gray-600" />,
+            '可预定': <CalendarPlus size={14} className="text-gray-600" />,
+            '可停车': <LetterCircleP size={14} className="text-gray-600" />,
+            '有包间': <Armchair size={14} className="text-gray-600" />,
+        };
+
+        for (const key in TAG_ICONS) {
+            if (tag.includes(key)) {
+                return TAG_ICONS[key];
+            }
+        }
         return null;
     };
 
@@ -239,7 +266,7 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             setIsExpanded(!isExpanded);
                         }}
                     >
-                        {isExpanded ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+                        {isExpanded ? <CaretDown size={24} /> : <CaretUp size={24} />}
                     </div>
 
                     {/* Title Row */}
@@ -248,10 +275,14 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             {place.name}
                         </h2>
                         <button
-                            onClick={handleClose}
-                            className="p-2 -mr-2 -mt-2 rounded-full hover:bg-black/5 flex-shrink-0 transition-colors"
+                            onClick={isExpanded ? handleCollapse : handleExpand}
+                            className="p-1.5 rounded-full hover:bg-gray-100/50 transition-colors"
                         >
-                            <X size={24} />
+                            {isExpanded ? (
+                                <CaretDown size={20} className="text-gray-400" />
+                            ) : (
+                                <CaretUp size={20} className="text-gray-400" />
+                            )}
                         </button>
                     </div>
 
@@ -272,29 +303,44 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                     </div>
 
                     {/* Featured Box (Icon + Quote) */}
-                    <div className="border border-gray-200 bg-white/40 rounded-xl p-4 flex gap-5 items-stretch">
-                        {/* Left: Icon & Category */}
-                        <div className="flex flex-col items-center justify-center gap-2 min-w-[60px]">
-                            <div className="w-14 h-14 rounded-full bg-white border border-gray-100 flex items-center justify-center">
-                                {getCategoryIcon()}
-                            </div>
-                            <span className={`px-3 py-1 text-[12px] font-medium rounded-md ${getCategoryColor()}`}>
-                                {getCategoryLabel()}
-                            </span>
-                        </div>
+                    {/* Featured Box (Redesigned: Silver Quality, Left/Right Split) */}
+                    {/* Featured Box (Refined: Silver Layout) */}
+                    {/* Featured Box (Refined: Unified Style with Left/Right Split) */}
+                    <div className="relative overflow-hidden rounded-xl border border-gray-100 bg-white/40">
+                        {/* Removed Silver Glass Background div */}
 
-                        {/* Right: Featured Text (Note/Recommendation) */}
-                        <div className="flex-1 relative pl-2 flex flex-col justify-center">
-                            <Quote className="text-gray-400 w-5 h-5 mb-1 transform -scale-x-100" />
-                            <p className="text-gray-700 text-[14px] leading-relaxed line-clamp-3">
-                                {place.note || place.recommended_dishes || '暂无详细介绍'}
-                            </p>
+                        <div className="relative flex h-full min-h-[140px]">
+                            {/* Left Side (Approx 35% - Category) */}
+                            <div className="w-[35%] flex flex-col items-center justify-center py-6 px-2 gap-3">
+                                {/* Icon: No background/border as requested */}
+                                <div className="flex items-center justify-center text-gray-700">
+                                    {getCategoryIcon()}
+                                </div>
+                                {/* Label: Silver/White transition texture */}
+                                <span className="px-3 py-1 text-[12px] font-medium rounded-full bg-gradient-to-br from-gray-100 via-white to-gray-200 border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-gray-600">
+                                    {getCategoryLabel()}
+                                </span>
+                            </div>
+
+                            {/* Vertical Divider (Gradient + White Highlight) */}
+                            <div className="w-px my-6 bg-gradient-to-b from-transparent via-gray-300/50 to-transparent shadow-[1px_0_0_0_rgba(255,255,255,0.7)]" />
+
+                            {/* Right Side (Approx 65% - Content) */}
+                            <div className="flex-1 p-5 flex flex-col justify-center">
+                                {/* Sparkle Icon (Phosphor) */}
+                                <Sparkle className="text-gray-800 w-5 h-5 mb-2" weight="fill" />
+
+                                {/* Content Text: Matches Recommended Dishes CSS (text-gray-600 leading-6) */}
+                                <p className="text-gray-600 text-[14px] leading-6 font-normal line-clamp-4">
+                                    {place.note || place.recommended_dishes || '暂无特别推荐'}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Scrollable Content */}
-                <div className={`px-6 pb-8 overflow-y-auto flex-1 ${isExpanded ? 'pt-2' : ''}`}>
+                <div className={`px-6 pb-8 overflow-y-auto flex-1 overscroll-contain ${isExpanded ? 'pt-2' : ''}`}>
 
                     {/* Expanded Content */}
                     <div className={`space-y-6 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
@@ -312,6 +358,31 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             </p>
                         </div>
 
+                        {/* Tags / Amenities */}
+                        {place.tags && place.tags.includes('连锁') && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                                <Storefront size={14} weight="fill" />
+                                <span>连锁</span>
+                            </div>
+                        )}
+                        {place.tags && place.tags.includes('可预定') && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                                <CalendarPlus size={14} weight="fill" />
+                                <span>可预定</span>
+                            </div>
+                        )}
+                        {place.tags && place.tags.includes('可停车') && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                                <LetterCircleP size={14} weight="fill" />
+                                <span>可停车</span>
+                            </div>
+                        )}
+                        {place.tags && place.tags.includes('有包间') && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                                <Armchair size={14} weight="fill" />
+                                <span>有包间</span>
+                            </div>
+                        )}
                         {/* Avoid Dishes */}
                         <div className="p-0 border-0">
                             <h3 className="text-[16px] font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -326,33 +397,25 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                         {/* Info Block */}
                         <div className="p-4 bg-white/40 border border-gray-100 rounded-xl space-y-4">
                             {/* Tags / Amenities */}
-                            {place.tags && place.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
-                                    {place.tags.map((tag, i) => (
-                                        <span key={i} className="px-2.5 py-1 bg-white/60 text-gray-700 rounded-full text-[12px] border border-gray-200/50 backdrop-blur-sm">
-                                            {tag}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+
 
                             {/* Average Price */}
                             {place.average_price && (
                                 <div className="flex items-center gap-3 text-gray-600">
-                                    <span className="text-lg font-bold text-orange-500">¥</span>
+                                    <FinnTheHuman size={18} className="text-gray-600" weight="fill" />
                                     <span className="text-[14px]">人均 {place.average_price}</span>
                                 </div>
                             )}
 
                             {/* Opening Hours */}
                             <div className="flex items-center gap-3 text-gray-600">
-                                <Clock size={16} />
+                                <ClockCountdown size={18} />
                                 <span className="text-[14px]">{place.opening_hours || '暂无营业时间'}</span>
                             </div>
 
                             {/* Address */}
                             <div className="flex items-start gap-3 text-gray-600">
-                                <MapPin size={16} className="mt-0.5 flex-shrink-0" />
+                                <MapPinArea size={18} className="mt-0.5 flex-shrink-0" />
                                 <span className="text-[14px] leading-snug">{place.address}</span>
                             </div>
                         </div>

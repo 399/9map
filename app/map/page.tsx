@@ -54,7 +54,7 @@ function MapContent() {
       <div className="absolute top-[calc(1rem+env(safe-area-inset-top))] left-4 right-4 z-10 flex gap-3 pointer-events-none">
         <Link
           href="/"
-          className="pointer-events-auto w-12 h-12 bg-white/80 backdrop-blur-md rounded-card shadow-soft-1 flex items-center justify-center text-gray-600 hover:text-apricot transition-colors"
+          className="pointer-events-auto w-12 h-12 bg-white/60 backdrop-blur-md rounded-full border border-white/50 flex items-center justify-center text-gray-700 hover:bg-white/80 transition-colors"
         >
           <ArrowLeft size={24} />
         </Link>
@@ -70,10 +70,10 @@ function MapContent() {
 
       <button
         onClick={handleResetLocation}
-        className="absolute bottom-24 right-4 z-10 p-4 bg-white/90 backdrop-blur-md rounded-full shadow-soft-1 hover:shadow-soft-2 hover:scale-105 transition-all duration-300 active:scale-95"
+        className="absolute bottom-24 right-4 z-10 p-3 bg-white/60 backdrop-blur-md rounded-full border border-white/50 hover:bg-white/80 transition-all duration-300 active:scale-95"
         aria-label="重置位置"
       >
-        <Locate className="w-6 h-6 text-blue-600" />
+        <Locate className="w-6 h-6 text-gray-700" />
       </button>
 
       <PlaceSheet
