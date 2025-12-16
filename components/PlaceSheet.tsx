@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Place } from '@/types';
-import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin } from '@phosphor-icons/react';
+import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin, HandsClapping, ThumbsDown, Eyes } from '@phosphor-icons/react';
 
 interface PlaceSheetProps {
     place: Place | null;
@@ -14,6 +14,7 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
     // Touch handling state
     const [isDragging, setIsDragging] = useState(false);
     const dragStartY = useRef(0);
+    const dragStartTime = useRef(0);
     const initialHeight = useRef(0);
     const currentDelta = useRef(0);
     const collapsedHeight = useRef(0);
@@ -65,10 +66,15 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
         }
     };
     const getCategoryLabel = () => {
-        if (place.category === 'restaurant') return '餐厅';
-        if (place.category === 'drink') return '饮品甜点';
-        if (place.category === 'snack') return '快餐小吃';
-        return '其他';
+        let label = '其他';
+        if (place.category === 'restaurant') label = '餐厅';
+        if (place.category === 'drink') label = '饮品甜点';
+        if (place.category === 'snack') label = '快餐小吃';
+
+        if (place.sub_category) {
+            return `${label} · ${place.sub_category}`;
+        }
+        return label;
     };
 
     const getCategoryColor = () => {
@@ -108,6 +114,8 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
 
         setIsDragging(true);
         dragStartY.current = e.touches[0].clientY;
+        dragStartTime.current = Date.now();
+
         if (sheetRef.current) {
             initialHeight.current = sheetRef.current.offsetHeight;
 
@@ -185,17 +193,25 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
         setIsDragging(false);
 
         const currentY = e.changedTouches[0].clientY;
+        const dragDuration = Date.now() - dragStartTime.current;
+        const velocity = Math.abs(currentDelta.current) / dragDuration;
+
         const threshold = 100;
         let shouldExpand = isExpanded;
+        let shouldClose = false;
 
         // Determine intended state
         if (!isExpanded) {
             if (currentDelta.current > threshold) {
                 shouldExpand = true;
-            } else if (currentDelta.current < -50) {
-                // Dragged DOWN enough -> Close
-                onClose();
-                return; // Close handles unmount/etc, but if it stays mounted we might want to animate back? Assuming Unmount/Close is fine.
+            } else {
+                // Dragged DOWN (negative delta)
+                const isLongDrag = currentDelta.current < -150; // Dragged down more than 150px
+                const isFastFlick = currentDelta.current < -50 && velocity > 0.5; // Short fast flick
+
+                if (isLongDrag || isFastFlick) {
+                    shouldClose = true;
+                }
             }
         } else {
             if (currentDelta.current < -threshold) {
@@ -209,12 +225,30 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
 
         // 2. Apply transition manually
         // Use a slightly longer curve for silky feel
-        const duration = 500;
+        let duration = 500;
         const easing = 'cubic-bezier(0.32, 0.72, 0, 1)';
+
+        // Slower duration for closing to ensure visibility
+        if (shouldClose) {
+            duration = 800; // Slower for visible exit
+        }
+
         sheetRef.current.style.transition = `all ${duration}ms ${easing}`;
 
         // 3. Set Target Styles immediately
-        if (shouldExpand) {
+        if (shouldClose) {
+            // Animate OFF SCREEN
+            sheetRef.current.style.bottom = '-100vh'; // Move way down
+
+            // Trigger onClose AFTER animation
+            setTimeout(() => {
+                onClose();
+            }, duration);
+
+            // Skip React State update and Cleanup as we are unmounting
+            return;
+
+        } else if (shouldExpand) {
             sheetRef.current.style.bottom = '0px';
             sheetRef.current.style.left = '0px';
             sheetRef.current.style.right = '0px';
@@ -222,18 +256,14 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
             sheetRef.current.style.maxHeight = '95vh';
             sheetRef.current.style.borderRadius = '24px 24px 0px 0px';
         } else {
+            // Normal collapse state
             sheetRef.current.style.bottom = '24px';
             sheetRef.current.style.left = '16px';
             sheetRef.current.style.right = '16px';
 
-            // Use captured collapsed height, or fallback to auto/guess
-            // If we don't have it (e.g. started expanded), use a safe fallback or calculation
-            // But for now, relying on capture is best effort.
             const targetH = collapsedHeight.current || 200;
             sheetRef.current.style.height = `${targetH}px`;
-
             sheetRef.current.style.maxHeight = '40vh';
-            // rounded-card-lg is 38px in globals.css
             sheetRef.current.style.borderRadius = '38px';
         }
 
@@ -316,17 +346,19 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                         {isExpanded ? <CaretDown size={24} /> : <CaretUp size={24} />}
                     </div>
 
+                    {/* Close Button (Absolute Top Right) */}
+                    <button
+                        onClick={handleClose}
+                        className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100/50 transition-colors z-30"
+                    >
+                        <X size={24} className="text-gray-400" weight="bold" />
+                    </button>
+
                     {/* Title Row */}
-                    <div className="flex justify-between items-start mt-4 md:mt-2">
+                    <div className="flex items-start mt-7 md:mt-2">
                         <h2 className={`text-[22px] font-bold text-gray-900 leading-tight pr-8 ${!isExpanded ? 'line-clamp-1' : ''}`}>
                             {place.name}
                         </h2>
-                        <button
-                            onClick={handleClose}
-                            className="p-1.5 rounded-full hover:bg-gray-100/50 transition-colors"
-                        >
-                            <X size={24} className="text-gray-400" weight="bold" />
-                        </button>
                     </div>
 
                     {/* Tags Row */}
@@ -353,14 +385,14 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                         {/* Removed Silver Glass Background div */}
 
                         <div className="relative flex h-full min-h-[140px]">
-                            {/* Left Side (Approx 35% - Category) */}
-                            <div className="w-[35%] flex flex-col items-center justify-center py-6 px-2 gap-3">
+                            {/* Left Side (Auto width, min 35% - Category) */}
+                            <div className="min-w-[35%] w-auto flex-shrink-0 flex flex-col items-center justify-center py-6 px-2 gap-3">
                                 {/* Icon: No background/border as requested */}
                                 <div className="flex items-center justify-center text-gray-700">
                                     {getCategoryIcon()}
                                 </div>
                                 {/* Label: Silver/White transition texture */}
-                                <span className="px-3 py-1 text-[12px] font-medium rounded-full bg-gradient-to-br from-gray-100 via-white to-gray-200 border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-gray-600">
+                                <span className="px-3 py-1 text-[12px] font-medium rounded-full bg-gradient-to-br from-gray-100 via-white to-gray-200 border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-gray-600 whitespace-nowrap">
                                     {getCategoryLabel()}
                                 </span>
                             </div>
@@ -369,10 +401,9 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             <div className="w-px my-6 bg-gradient-to-b from-transparent via-gray-300/50 to-transparent shadow-[1px_0_0_0_rgba(255,255,255,0.7)]" />
 
                             {/* Right Side (Approx 65% - Content) */}
-                            <div className="flex-1 p-5 flex flex-col justify-center">
-                                {/* Sparkle Icon (Phosphor) */}
-                                {/* Sparkle Icon (Phosphor) */}
-                                <Sparkle className="text-gray-800 w-5 h-5 mb-2" weight="bold" />
+                            <div className="flex-1 p-5 flex flex-col">
+                                {/* Eyes Icon (Phosphor) */}
+                                <Eyes className="text-gray-800 w-5 h-5 mb-2" weight="fill" />
 
                                 {/* Content Text: Matches Recommended Dishes CSS (text-gray-600 leading-6) */}
                                 <p className="text-gray-600 text-[14px] leading-6 font-normal line-clamp-4">
@@ -384,36 +415,63 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                 </div>
 
                 {/* Scrollable Content */}
-                <div className={`px-6 pb-8 overflow-y-auto flex-1 overscroll-contain ${isExpanded ? 'pt-2' : ''}`}>
+                <div className={`px-4 pb-8 overflow-y-auto flex-1 overscroll-contain ${isExpanded ? 'pt-2' : ''}`}>
 
                     {/* Expanded Content */}
                     <div className={`space-y-6 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
 
                         {/* Note Block removed (moved to header) */}
 
-                        {/* Recommended Dishes */}
-                        <div className="p-0 border-0">
-                            <h3 className="text-[16px] font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <span className="w-1 h-4 bg-orange-400 rounded-full"></span>
-                                推荐菜
-                            </h3>
-                            <p className="text-gray-600 text-[14px] leading-6 bg-white/40 p-4 rounded-xl border border-gray-100">
-                                {place.recommended_dishes || '暂无推荐'}
-                            </p>
-                        </div>
+                        {/* Logic: If Featured Box is showing 'recommended_dishes' (because note is missing), don't show it again here */}
+                        {/* Only show Recommended Dishes block if:
+                            1. It has content
+                            2. AND (Featured Box is showing 'note' OR (Featured Box is showing fallback text AND Place has recommended dishes))
+                            Actually simpler: If place.note exists, Featured Box shows Note. Then we show Recommended here.
+                            If place.note is missing, Featured Box shows Recommended. Then we hide this block.
+                         */}
+                        {place.recommended_dishes && place.note && (
+                            <div className="relative p-5 rounded-2xl border bg-green-50/50 border-green-100/50 flex gap-4 overflow-hidden">
+                                {/* Decor Icon - Absolute positioned "Sticker" feel */}
+                                {/* Green HandsClapping */}
+                                <div className="absolute top-[-6px] left-[-6px] opacity-20 transform -rotate-12">
+                                    <HandsClapping size={64} weight="fill" className="text-green-600" />
+                                </div>
+
+                                {/* Content */}
+                                <div className="relative z-10 flex gap-3 w-full">
+                                    <HandsClapping size={24} weight="fill" className="text-green-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <div className="text-green-800 font-bold mb-1 text-[15px]">值得一试</div>
+                                        <p className="text-green-700/80 text-[14px] leading-6 font-medium">
+                                            {place.recommended_dishes}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Tags / Amenities */}
 
                         {/* Avoid Dishes */}
-                        <div className="p-0 border-0">
-                            <h3 className="text-[16px] font-bold text-gray-900 mb-3 flex items-center gap-2">
-                                <span className="w-1 h-4 bg-gray-400 rounded-full"></span>
-                                避雷菜
-                            </h3>
-                            <p className="text-gray-600 text-[14px] leading-6 bg-white/40 p-4 rounded-xl border border-gray-100">
-                                {place.avoid_dishes || '暂无避雷'}
-                            </p>
-                        </div>
+                        {place.avoid_dishes && (
+                            <div className="relative p-5 rounded-2xl border bg-red-50/50 border-red-100/50 flex gap-4 overflow-hidden">
+                                {/* Decor Icon - Left side now, matched style */}
+                                <div className="absolute top-[-6px] left-[-6px] opacity-10 transform -rotate-12">
+                                    <ThumbsDown size={80} weight="fill" className="text-red-600" />
+                                </div>
+
+                                {/* Content */}
+                                <div className="relative z-10 flex gap-3 w-full">
+                                    <ThumbsDown size={24} weight="fill" className="text-red-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <div className="text-red-800 font-bold mb-1 text-[15px]">谨慎选择</div>
+                                        <p className="text-red-700/80 text-[14px] leading-6 font-medium">
+                                            {place.avoid_dishes}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Info Block */}
                         <div className="p-4 bg-white/40 border border-gray-100 rounded-xl space-y-4">
@@ -442,7 +500,6 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             </div>
 
                             {/* Spacer for bottom safe area */}
-                            <div className="h-12" />
                         </div>
 
                         {/* Collapsed View Content - Removed Address Display */}

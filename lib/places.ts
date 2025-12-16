@@ -121,6 +121,7 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
                 tags: fields['tags'] ? (Array.isArray(fields['tags']) ? fields['tags'] : [fields['tags']]) : [],
                 opening_hours: fields['opening_hours'] || '',
                 average_price: fields['average_price'] || '',
+                sub_category: fields['category_link'] || '',
             };
         })
         .filter((place) => {
