@@ -144,7 +144,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         const iconHtml = renderToStaticMarkup(
             <IconComponent
                 size={20}
-                weight="fill"
+                weight="bold"
                 color={iconColor}
                 style={{ display: 'block' }}
             />
