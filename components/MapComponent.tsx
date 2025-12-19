@@ -125,7 +125,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     }, []);
 
     // Helper to generate marker content
-    const getMarkerContent = (place: Place, isSelected: boolean) => {
+    const getMarkerContent = (place: Place, isSelected: boolean, clusterCount: number = 1) => {
         let IconComponent = MapPin;
         let iconColor = '#6b7280'; // gray-500
 
@@ -157,22 +157,27 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         const shadow = isSelected ? selectedShadow : normalShadow;
         const zIndex = isSelected ? 999 : 1;
 
-        return `
-        <div class="marker-container" style="
-          transform: translateY(-50%) scale(${scale});
-          z-index: ${zIndex};
-        " 
-        onmouseover="
-          this.style.transform='translateY(-50%) scale(1.25)';
-          this.style.zIndex='999';
-          this.firstElementChild.style.boxShadow='${selectedShadow}';
-        " 
-        onmouseout="
-          this.style.transform='translateY(-50%) scale(${scale})';
-          this.style.zIndex='${zIndex}';
-          this.firstElementChild.style.boxShadow='${shadow}';
-        ">
-          <div class="marker-icon" style="
+        // Container
+        const container = document.createElement('div');
+        container.className = 'marker-container';
+        container.style.cssText = `
+            transform: translateY(-50%) scale(${scale});
+            z-index: ${zIndex};
+            pointer-events: none; /* Pass through clicks on transparent area */
+            width: 48px;
+            height: 48px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-origin: center center;
+            transition: transform 0.2s, z-index 0.2s; /* Add transition */
+        `;
+
+        // Icon Wrapper
+        const iconDiv = document.createElement('div');
+        iconDiv.className = 'marker-icon';
+        iconDiv.style.cssText = `
             box-shadow: ${shadow};
             background-color: white;
             border-radius: 50%;
@@ -182,14 +187,86 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             align-items: center;
             justify-content: center;
             border: 1px solid rgba(0,0,0,0.05);
-          ">
-            ${iconHtml}
-          </div>
-          <div class="marker-label" style="
+            position: relative;
+            pointer-events: auto; /* Catch clicks on icon */
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        `;
+        iconDiv.innerHTML = iconHtml;
+
+        // Badge
+        if (clusterCount > 1) {
+            const badge = document.createElement('div');
+            badge.style.cssText = `
+                 position: absolute;
+                 top: -6px;
+                 right: -6px;
+                 background-color: #EF4444;
+                 color: white;
+                 border-radius: 99px;
+                 padding: 0 5px;
+                 font-size: 11px;
+                 font-weight: bold;
+                 border: 1.5px solid white;
+                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                 min-width: 18px;
+                 height: 18px;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 z-index: 10;
+             `;
+            badge.textContent = `+${clusterCount - 1}`;
+            iconDiv.appendChild(badge);
+        }
+
+        // Label
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'marker-label';
+        labelDiv.style.cssText = `
             opacity: ${isSelected ? 1 : 0.9};
-          ">${place.name}</div>
-        </div>
-      `;
+            pointer-events: none;
+            position: absolute;
+            top: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            font-size: 14px;
+            font-weight: 700;
+            color: #000;
+            text-shadow: -1.5px -1.5px 0 #fff, 1.5px -1.5px 0 #fff, -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 2px 4px rgba(0,0,0,0.3);
+            transition: opacity 0.2s;
+        `;
+        labelDiv.innerText = place.name;
+
+        container.appendChild(iconDiv);
+        container.appendChild(labelDiv);
+
+        // Events
+        container.onmouseover = () => {
+            container.style.transform = 'translateY(-50%) scale(1.25)';
+            container.style.zIndex = '999';
+            iconDiv.style.boxShadow = selectedShadow;
+        };
+        container.onmouseout = () => {
+            container.style.transform = `translateY(-50%) scale(${scale})`;
+            container.style.zIndex = `${zIndex}`;
+            iconDiv.style.boxShadow = shadow;
+        };
+
+        // Click Handler (Directly on Icon)
+        iconDiv.onclick = (e) => {
+            e.stopPropagation(); // Stop bubbling (though AMap clickable:false should handle it)
+            if (mapInstance.current) {
+                const map = mapInstance.current;
+                // Pan to location
+                map.panTo(new (window as any).AMap.LngLat(place.location[0], place.location[1]));
+                if (map.getZoom() < 17) map.setZoom(17);
+            }
+            onMarkerClick(place);
+        };
+
+        return container;
     };
 
     // Debounce function
@@ -216,74 +293,115 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         // Update zoom level attribute for CSS styling
         if (mapContainer.current) {
             let zoomLevel = 'high';
-            if (zoom < 14) zoomLevel = 'low';
+            if (zoom < 11) zoomLevel = 'low';
             else if (zoom < 16) zoomLevel = 'medium';
 
             mapContainer.current.setAttribute('data-zoom', zoomLevel);
         }
 
-        // Keep track of markers that should remain
-        const markersToKeep = new Set<string>();
+        // Keep track of markers that should remain (using representative Place IDs)
+        const clustersToRender = new Map<string, { place: Place, count: number }>();
+        const processedPlaceIds = new Set<string>();
 
-        places.forEach((place) => {
+        // Sort places: Selected place first (to ensure it becomes cluster head), then by latitude
+        const sortedPlaces = [...places].sort((a, b) => {
+            if (a.id === selectedPlaceId) return -1;
+            if (b.id === selectedPlaceId) return 1;
+            return b.location[1] - a.location[1]; // Stable deterministic sort
+        });
+
+        // Clustering Logic
+        sortedPlaces.forEach(place => {
+            if (processedPlaceIds.has(place.id)) return;
+
             const [lng, lat] = place.location;
-            const isVisible = bounds.contains(new AMap.LngLat(lng, lat));
+            if (!bounds.contains(new AMap.LngLat(lng, lat))) return; // Skip invisible
 
+            const pixel = map.lngLatToContainer(new AMap.LngLat(lng, lat));
+
+            // Start a new cluster with this place as head
+            let clusterCount = 1;
+            processedPlaceIds.add(place.id);
+
+            // Find neighbors
+            sortedPlaces.forEach(neighbor => {
+                if (place.id === neighbor.id || processedPlaceIds.has(neighbor.id)) return;
+
+                const [nLng, nLat] = neighbor.location;
+                // Basic bounds check first for speed
+                if (!bounds.contains(new AMap.LngLat(nLng, nLat))) return;
+
+                const nPixel = map.lngLatToContainer(new AMap.LngLat(nLng, nLat));
+                const distance = Math.sqrt(Math.pow(pixel.x - nPixel.x, 2) + Math.pow(pixel.y - nPixel.y, 2));
+
+                if (distance < 60) { // Cluster Threshold: 60px
+                    clusterCount++;
+                    processedPlaceIds.add(neighbor.id);
+                }
+            });
+
+            // Add the head place to render list
+            clustersToRender.set(place.id, { place, count: clusterCount });
+        });
+
+        // Render Clusters
+        const activeMarkerIds = new Set<string>();
+
+        clustersToRender.forEach(({ place, count }) => {
+            activeMarkerIds.add(place.id);
+            const [lng, lat] = place.location;
             let marker = markersRef.current.get(place.id);
+            const isSelected = place.id === selectedPlaceId;
 
-            if (isVisible) {
-                markersToKeep.add(place.id);
+            // Check if updates are needed using extData
+            const needsUpdate = !marker ||
+                (marker.getExtData && marker.getExtData().isSelected !== isSelected) ||
+                (marker.getExtData && marker.getExtData().count !== count);
+
+            if (needsUpdate) {
+                const content = getMarkerContent(place, isSelected, count);
+
                 if (!marker) {
-                    // Create marker if it doesn't exist
-                    const isSelected = place.id === selectedPlaceId;
-                    const content = getMarkerContent(place, isSelected);
-
+                    // Create new marker
                     marker = new AMap.Marker({
                         position: new AMap.LngLat(lng, lat),
                         content: content,
-                        offset: new AMap.Pixel(0, 0), // Adjusted to match getMarkerContent's translateY(-50%)
+                        offset: new AMap.Pixel(0, 0),
                         anchor: 'center',
                         zIndex: isSelected ? 999 : 100,
-                        extData: { id: place.id }
-                    });
-
-                    marker.on('click', () => {
-                        map.panTo(new AMap.LngLat(lng, lat));
-                        if (map.getZoom() < 17) map.setZoom(17);
-                        onMarkerClick(place);
+                        clickable: false, // Critical: Disable AMap internal click handling so our DOM events work
+                        extData: { id: place.id, isSelected, count }
                     });
 
                     marker.setMap(map);
                     markersRef.current.set(place.id, marker);
                 } else {
-                    // Update existing marker if its content needs to change (e.g., selection state)
-                    const isSelected = place.id === selectedPlaceId;
-                    const currentContent = marker.getContent();
-                    const newContent = getMarkerContent(place, isSelected);
-                    if (currentContent !== newContent) {
-                        marker.setContent(newContent);
-                    }
-                    // Update zIndex if selection state changed
-                    const currentZIndex = typeof marker.getzIndex === 'function' ? marker.getzIndex() : marker.getZIndex();
+                    // Update existing
+                    marker.setContent(content);
+                    marker.setExtData({ id: place.id, isSelected, count });
+
+                    // Update Z-Index
                     const targetZIndex = isSelected ? 999 : 100;
-                    if (currentZIndex !== targetZIndex) {
-                        if (typeof marker.setzIndex === 'function') {
-                            marker.setzIndex(targetZIndex);
-                        } else if (typeof marker.setZIndex === 'function') {
-                            marker.setZIndex(targetZIndex);
-                        }
-                    }
+                    if (typeof marker.setzIndex === 'function') marker.setzIndex(targetZIndex);
+                    else if (typeof marker.setZIndex === 'function') marker.setZIndex(targetZIndex);
+
+                    // Update position
+                    marker.setPosition(new AMap.LngLat(lng, lat));
                 }
+            } else {
+                // Just update position if needed (usually stable)
+                marker.setPosition(new AMap.LngLat(lng, lat));
             }
         });
 
-        // Remove markers that are no longer visible or no longer in the places array
+        // Cleanup markers that are NOT in the active render list
         markersRef.current.forEach((marker, id) => {
-            if (!markersToKeep.has(id)) {
+            if (!activeMarkerIds.has(id)) {
                 marker.setMap(null);
                 markersRef.current.delete(id);
             }
         });
+
     }, [places, onMarkerClick, selectedPlaceId, getMarkerContent]);
 
     // Debounced version of updateVisibleMarkers
@@ -387,7 +505,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             // User is in the city -> Center on user
             console.log('📍 Centering on User Position:', result.position);
             map.setCenter(result.position);
-            map.setZoom(15);
+            map.setZoom(13); // Position Lock Zoom Level
         } else {
             // User is NOT in the city OR Geolocation Failed -> Fit all places
             if (places.length > 0) {
@@ -509,7 +627,32 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         });
     }, [isMapReady, targetCity]);
 
-    return <div ref={mapContainer} className="w-full h-full" />;
+    return (
+        <div className="relative w-full h-full">
+            {/* Top Gradient Mask (Smooth 8-point) */}
+            <div
+                className="absolute top-0 left-0 right-0 h-40 pointer-events-none z-[5]"
+                style={{
+                    background: 'linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 10%, rgba(255, 255, 255, 0.85) 20%, rgba(255, 255, 255, 0.65) 35%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.15) 80%, rgba(255, 255, 255, 0) 100%)'
+                }}
+            />
+
+            {/* Bottom Gradient Mask (Smooth 8-point) */}
+            <div
+                className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none z-[5]"
+                style={{
+                    background: 'linear-gradient(to top, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.95) 10%, rgba(255, 255, 255, 0.85) 20%, rgba(255, 255, 255, 0.65) 35%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.15) 80%, rgba(255, 255, 255, 0) 100%)'
+                }}
+            />
+
+            {/* City Title Overlay */}
+            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 z-[5] pointer-events-none flex items-center justify-center">
+                <span className="text-xl font-bold text-gray-900 drop-shadow-sm">{targetCity || '上海'}</span>
+            </div>
+
+            <div ref={mapContainer} className="w-full h-full" />
+        </div>
+    );
 });
 
 MapComponent.displayName = 'MapComponent';

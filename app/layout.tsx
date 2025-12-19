@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   description: "个人地图应用",
   manifest: "/manifest.json",
   icons: {
-    icon: "/Icon-1024.png",
-    apple: "/Icon-1024.png",
+    icon: "https://img.399.be/img/Icon-1024.jpg",
+    apple: "https://img.399.be/img/Icon-1024.jpg",
   },
   appleWebApp: {
     capable: true,

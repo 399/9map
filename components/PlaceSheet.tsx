@@ -42,28 +42,51 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
         onClose();
     };
 
+    // Helper component for dynamic icon loading
+    const CategoryIcon = ({ place }: { place: Place }) => {
+        const iconBaseUrl = 'https://img.399.be/img/icon';
+
+        // Map category to Chinese filename
+        const categoryMap: Record<string, string> = {
+            'restaurant': '餐厅',
+            'drink': '饮品甜点',
+            'snack': '快餐小吃',
+            'default': '餐厅' // Safe fallback
+        };
+
+        const categoryName = categoryMap[place.category] || categoryMap['default'];
+
+        // Ensure safe URLs with encoding and trimming
+        const safeSubCategory = place.sub_category ? encodeURIComponent(place.sub_category.trim()) : '';
+        const safeCategoryName = encodeURIComponent(categoryName);
+
+        const primarySrc = safeSubCategory ? `${iconBaseUrl}/${safeSubCategory}.png` : `${iconBaseUrl}/${safeCategoryName}.png`;
+        const fallbackSrc = `${iconBaseUrl}/${safeCategoryName}.png`;
+
+        const [src, setSrc] = useState(primarySrc);
+
+        // Reset src when place changes
+        useEffect(() => {
+            setSrc(primarySrc);
+        }, [place.sub_category, place.category]);
+
+        return (
+            <img
+                src={src}
+                alt={place.sub_category || categoryName}
+                className="w-16 h-16 object-contain"
+                onError={() => {
+                    if (src !== fallbackSrc) {
+                        setSrc(fallbackSrc);
+                    }
+                }}
+            />
+        );
+    };
+
     // Get icon for category
     const getCategoryIcon = () => {
-        const category = place.category;
-
-        // Custom icon for "Restaurant"
-        if (category === 'restaurant') {
-            return (
-                <img
-                    src="/icon/noodles.png"
-                    alt="餐厅"
-                    className="w-16 h-16 object-contain"
-                />
-            );
-        }
-
-        // Default for other categories
-        // Default for other categories
-        switch (category) {
-            case 'drink': return <Coffee size={24} className="text-gray-600" weight="bold" />;
-            case 'snack': return <Hamburger size={24} className="text-gray-600" weight="bold" />;
-            default: return <ForkKnife size={24} className="text-gray-600" weight="bold" />;
-        }
+        return <CategoryIcon place={place} />;
     };
     const getCategoryLabel = () => {
         let label = '其他';
