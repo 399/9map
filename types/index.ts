@@ -15,6 +15,7 @@ export interface Place {
     opening_hours?: string;
     average_price?: string;
     sub_category?: string;
+    business_area?: string;
 }
 
 export interface PlacesResponse {

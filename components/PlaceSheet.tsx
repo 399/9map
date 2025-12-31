@@ -1,23 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { Place } from '@/types';
-import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin, HandsClapping, ThumbsDown, Eyes } from '@phosphor-icons/react';
+import BottomSheet from './BottomSheet';
+import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin, HandsClapping, ThumbsDown, Eyes, Car, NavigationArrow, Copy } from '@phosphor-icons/react';
 
 interface PlaceSheetProps {
     place: Place | null;
     onClose: () => void;
+    travelInfo?: { distance: string; time: string } | null;
 }
 
-export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
+export default function PlaceSheet({ place, onClose, travelInfo }: PlaceSheetProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const sheetRef = useRef<HTMLDivElement>(null);
 
-    // Touch handling state
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartY = useRef(0);
-    const dragStartTime = useRef(0);
-    const initialHeight = useRef(0);
-    const currentDelta = useRef(0);
-    const collapsedHeight = useRef(0);
+    // Touch handling state removed (moved to BottomSheet)
+
+    const [showNavMenu, setShowNavMenu] = useState(false);
 
     // Reset expanded state when place changes
     useEffect(() => {
@@ -123,229 +121,12 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
         return null;
     };
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        e.stopPropagation();
-        // Only enable drag on mobile (check width or user agent if needed, but here we rely on touch events)
-        // Also ensure we are not dragging inner scrollable content if it's already expanded and scrolled
-        // For simplicity, we enable drag on the header/handle area primarily, or the whole sheet if collapsed
-
-        // If expanded, only allow drag on the handle area to avoid conflict with scrolling
-        if (isExpanded) {
-            const target = e.target as HTMLElement;
-            if (!target.closest('.drag-handle-area')) return;
-        }
-
-        setIsDragging(true);
-        dragStartY.current = e.touches[0].clientY;
-        dragStartTime.current = Date.now();
-
-        if (sheetRef.current) {
-            initialHeight.current = sheetRef.current.offsetHeight;
-
-            // Capture collapsed height if we are starting from collapsed
-            if (!isExpanded) {
-                collapsedHeight.current = sheetRef.current.offsetHeight;
-            }
-
-            // Disable transition during drag
-            sheetRef.current.style.transition = 'none';
-        }
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        e.stopPropagation();
-        if (!isDragging || !sheetRef.current) return;
-
-        const currentY = e.touches[0].clientY;
-        const deltaY = dragStartY.current - currentY;
-        currentDelta.current = deltaY;
-
-        // Constants for layout
-        const INITIAL_BOTTOM = 24; // bottom-6
-        const INITIAL_MARGIN = 16; // left-4 right-4
-        const DOCK_DISTANCE = 200; // Distance to fully dock to edges
-
-        // Logic for dragging UP (expanding) from collapsed state
-        if (!isExpanded) {
-            if (deltaY > 0) {
-                // Dragging UP - Expand logic
-                // Calculate progress (0 to 1)
-                // 0 = start, 1 = fully docked (but not necessarily full height)
-                const progress = Math.min(Math.abs(deltaY) / DOCK_DISTANCE, 1);
-                const easeProgress = progress; // Linear for now
-
-                // Interpolate styles
-                const currentBottom = INITIAL_BOTTOM * (1 - easeProgress);
-                const currentMargin = INITIAL_MARGIN * (1 - easeProgress);
-
-                const newHeight = initialHeight.current + deltaY + (INITIAL_BOTTOM - currentBottom);
-
-                sheetRef.current.style.bottom = `${currentBottom}px`;
-                sheetRef.current.style.left = `${currentMargin}px`;
-                sheetRef.current.style.right = `${currentMargin}px`;
-
-                const topRadius = 20 + (4 * easeProgress); // 20 -> 24
-                const bottomRadius = 20 * (1 - easeProgress); // 20 -> 0
-                sheetRef.current.style.borderRadius = `${topRadius}px ${topRadius}px ${bottomRadius}px ${bottomRadius}px`;
-                sheetRef.current.style.height = `${newHeight}px`;
-                sheetRef.current.style.maxHeight = '95vh';
-            } else {
-                // Dragging DOWN - Close logic (deltaY is negative)
-                const newBottom = INITIAL_BOTTOM + deltaY;
-                sheetRef.current.style.bottom = `${newBottom}px`;
-                // Keep other styles stable
-                sheetRef.current.style.height = `${initialHeight.current}px`;
-            }
-
-        } else {
-            // Logic for dragging DOWN (collapsing) from expanded state
-            if (deltaY > 0) return; // Ignore dragging up further
-
-            // We are dragging down, deltaY is negative
-            // Just shrink height for now, simple and effective
-            const newHeight = initialHeight.current + deltaY;
-            if (newHeight > 200) {
-                sheetRef.current.style.height = `${newHeight}px`;
-            }
-        }
-    };
-
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        e.stopPropagation();
-        if (!isDragging || !sheetRef.current) return;
-        setIsDragging(false);
-
-        const currentY = e.changedTouches[0].clientY;
-        const dragDuration = Date.now() - dragStartTime.current;
-        const velocity = Math.abs(currentDelta.current) / dragDuration;
-
-        const threshold = 100;
-        let shouldExpand = isExpanded;
-        let shouldClose = false;
-
-        // Determine intended state
-        if (!isExpanded) {
-            if (currentDelta.current > threshold) {
-                shouldExpand = true;
-            } else {
-                // Dragged DOWN (negative delta)
-                const isLongDrag = currentDelta.current < -150; // Dragged down more than 150px
-                const isFastFlick = currentDelta.current < -50 && velocity > 0.5; // Short fast flick
-
-                if (isLongDrag || isFastFlick) {
-                    shouldClose = true;
-                }
-            }
-        } else {
-            if (currentDelta.current < -threshold) {
-                shouldExpand = false;
-            }
-        }
-
-        // 1. Force Browser Reflow to ensure current position is acknowledged
-        // This prevents the browser from jumping if it hasn't painted the last move frame
-        void sheetRef.current.offsetHeight;
-
-        // 2. Apply transition manually
-        // Use a slightly longer curve for silky feel
-        let duration = 500;
-        const easing = 'cubic-bezier(0.32, 0.72, 0, 1)';
-
-        // Slower duration for closing to ensure visibility
-        if (shouldClose) {
-            duration = 800; // Slower for visible exit
-        }
-
-        sheetRef.current.style.transition = `all ${duration}ms ${easing}`;
-
-        // 3. Set Target Styles immediately
-        if (shouldClose) {
-            // Animate OFF SCREEN
-            sheetRef.current.style.bottom = '-100vh'; // Move way down
-
-            // Trigger onClose AFTER animation
-            setTimeout(() => {
-                onClose();
-            }, duration);
-
-            // Skip React State update and Cleanup as we are unmounting
-            return;
-
-        } else if (shouldExpand) {
-            sheetRef.current.style.bottom = '0px';
-            sheetRef.current.style.left = '0px';
-            sheetRef.current.style.right = '0px';
-            sheetRef.current.style.height = '95vh';
-            sheetRef.current.style.maxHeight = '95vh';
-            sheetRef.current.style.borderRadius = '24px 24px 0px 0px';
-        } else {
-            // Normal collapse state
-            sheetRef.current.style.bottom = '24px';
-            sheetRef.current.style.left = '16px';
-            sheetRef.current.style.right = '16px';
-
-            const targetH = collapsedHeight.current || 200;
-            sheetRef.current.style.height = `${targetH}px`;
-            sheetRef.current.style.maxHeight = '40vh';
-            sheetRef.current.style.borderRadius = '38px';
-        }
-
-        // 4. Defer React State update to next frame to avoid jank during transition start
-        requestAnimationFrame(() => {
-            setIsExpanded(shouldExpand);
-        });
-
-        // 5. Cleanup after animation
-        setTimeout(() => {
-            if (sheetRef.current) {
-                // Prevent transition from triggering when switching from inline styles to classes
-                sheetRef.current.style.transition = 'none';
-
-                // Force reflow to apply 'none'
-                void sheetRef.current.offsetHeight;
-
-                // Clear inline styles to let CSS classes take over
-                sheetRef.current.style.bottom = '';
-                sheetRef.current.style.left = '';
-                sheetRef.current.style.right = '';
-                sheetRef.current.style.height = '';
-                sheetRef.current.style.maxHeight = '';
-                sheetRef.current.style.borderRadius = '';
-
-                // Restore transition after a tick (optional, if we want hover effects later)
-                // But for now just clearing 'none' allows class-defined or default behavior
-                setTimeout(() => {
-                    if (sheetRef.current) {
-                        sheetRef.current.style.transition = '';
-                    }
-                }, 10);
-            }
-        }, duration + 50); // slight buffer
-
-        currentDelta.current = 0;
-    };
-
     return (
         <>
-            {/* Backdrop for expanded state */}
-            {isExpanded && (
-                <div
-                    className="fixed inset-0 bg-black/20 z-40 transition-opacity duration-500"
-                    onClick={onClose}
-                />
-            )}
-
-            <div
-                ref={sheetRef}
-                className={`fixed z-[2000] shadow-soft-1 overflow-hidden flex flex-col transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
-                    ${isExpanded
-                        ? 'inset-x-0 bottom-0 h-[95vh] rounded-t-2xl bg-[#ffffff85] backdrop-blur-md border-t border-white/50'
-                        : 'left-4 right-4 bottom-6 rounded-card-lg max-h-[40vh] bg-[#ffffff85] backdrop-blur-md border border-white/50'
-                    }`}
-                // onClick={!isExpanded ? handleExpand : undefined} // Removed click-to-expand
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
+            <BottomSheet
+                isExpanded={isExpanded}
+                onExpandChange={setIsExpanded}
+                onClose={onClose}
             >
                 {/* Header / Handle */}
                 <div className="relative p-4 pb-2 flex-shrink-0 drag-handle-area">
@@ -501,6 +282,11 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                             {/* Tags / Amenities */}
 
 
+                            {/* Travel Info (Driving) - Removed standalone block */}
+
+                            {/* Average Price */}
+
+
                             {/* Average Price */}
                             {/* Average Price */}
                             {place.average_price && (
@@ -516,10 +302,43 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                                 <span className="text-[14px]">{place.opening_hours || '暂无营业时间'}</span>
                             </div>
 
-                            {/* Address */}
-                            <div className="flex items-start gap-3 text-gray-600">
-                                <MapPinArea size={18} className="mt-0.5 flex-shrink-0" weight="bold" />
-                                <span className="text-[14px] leading-snug">{place.address}</span>
+                            {/* Business Area (New) */}
+                            {place.business_area && (
+                                <div className="flex items-center gap-3 text-gray-600">
+                                    <MapPin size={18} className="text-gray-600" weight="bold" />
+                                    <span className="text-[14px] font-medium text-gray-800">{place.business_area}</span>
+                                </div>
+                            )}
+
+                            {/* Address & Navigation */}
+                            <div className="flex items-center gap-3 w-full">
+                                {/* Icon */}
+                                <MapPinArea size={18} className="text-gray-600 flex-shrink-0" weight="bold" />
+
+                                {/* Text Column */}
+                                <div className="flex-1 min-w-0 flex flex-col items-start gap-1">
+                                    {/* Address Text */}
+                                    <span className="text-[14px] text-gray-600 leading-snug break-all line-clamp-2">
+                                        {place.address}
+                                    </span>
+
+                                    {/* Subtitle: Travel Info */}
+                                    {travelInfo && (
+                                        <div className="flex items-center gap-1.5 text-[12px] text-gray-500/80 font-medium">
+                                            <span>距离我 {travelInfo.distance}</span>
+                                            <span className="w-0.5 h-0.5 rounded-full bg-gray-400" />
+                                            <span>驾车 {travelInfo.time.replace(/(\d+)/g, ' $1 ')}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Navigation Arrow (Click Trigger) */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setShowNavMenu(true); }}
+                                    className="p-2 -mr-2 text-gray-400 hover:text-blue-600 active:scale-95 transition-colors"
+                                >
+                                    <NavigationArrow size={24} weight="bold" />
+                                </button>
                             </div>
 
                             {/* Spacer for bottom safe area */}
@@ -528,7 +347,86 @@ export default function PlaceSheet({ place, onClose }: PlaceSheetProps) {
                         {/* Collapsed View Content - Removed Address Display */}
                     </div>
                 </div>
-            </div>
+            </BottomSheet>
+
+            {/* Navigation Menu Modal (Global Bottom Sheet) */}
+            {showNavMenu && (
+                <div
+                    className="fixed inset-0 z-[2100] flex flex-col justify-end animation-fade-in"
+                >
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+                        onClick={() => setShowNavMenu(false)}
+                    />
+
+                    {/* Modal Content */}
+                    <div
+                        className="relative w-full bg-[#ffffffdd] backdrop-blur-xl rounded-t-2xl shadow-2xl border-t border-white/60 overflow-hidden flex flex-col animation-slide-up pb-[env(safe-area-inset-bottom)]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Handle Bar */}
+                        <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setShowNavMenu(false)}>
+                            <div className="w-10 h-1 bg-gray-400/40 rounded-full" />
+                        </div>
+
+                        {/* Header */}
+                        <div className="p-4 py-3 text-center text-gray-500 text-[13px] font-medium border-b border-gray-200/50">
+                            导航到 {place.name}
+                        </div>
+
+                        {/* Buttons */}
+                        <button
+                            className="w-full p-4 text-center text-[16px] text-blue-600 font-medium hover:bg-white/50 active:bg-gray-200/50 transition-colors border-b border-gray-200/50 flex justify-center items-center gap-2"
+                            onClick={() => {
+                                const [lng, lat] = place.location;
+                                // AMap URL Scheme - iOS/Android
+                                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                                const webUrl = `https://uri.amap.com/marker?position=${lng},${lat}&name=${encodeURIComponent(place.name)}`;
+
+                                if (isIOS) {
+                                    window.location.href = `iosamap://path?sourceApplication=9Map&dlat=${lat}&dlon=${lng}&dname=${encodeURIComponent(place.name)}&dev=0&t=0`;
+                                    // Fallback to new tab
+                                    setTimeout(() => {
+                                        window.open(webUrl, '_blank');
+                                    }, 2000);
+                                } else {
+                                    window.location.href = `androidamap://viewMap?sourceApplication=9Map&poiname=${encodeURIComponent(place.name)}&lat=${lat}&lon=${lng}&dev=0`;
+                                    setTimeout(() => {
+                                        window.open(webUrl, '_blank');
+                                    }, 2000);
+                                }
+                                setShowNavMenu(false);
+                            }}
+                        >
+                            高德地图
+                        </button>
+
+                        <button
+                            className="w-full p-4 text-center text-[16px] text-blue-600 font-medium hover:bg-white/50 active:bg-gray-200/50 transition-colors border-b border-gray-200/50 flex justify-center items-center gap-2"
+                            onClick={() => {
+                                const [lng, lat] = place.location;
+                                // Apple Maps
+                                window.location.href = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
+                                setShowNavMenu(false);
+                            }}
+                        >
+                            Apple 地图
+                        </button>
+
+                        <button
+                            className="w-full p-4 text-center text-[16px] text-blue-600 font-medium hover:bg-white/50 active:bg-gray-200/50 transition-colors flex justify-center items-center gap-2 mb-2"
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${place.name} ${place.address}`);
+                                alert('地址已复制');
+                                setShowNavMenu(false);
+                            }}
+                        >
+                            <Copy size={18} /> 拷贝地址
+                        </button>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

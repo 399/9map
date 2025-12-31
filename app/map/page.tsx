@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import PlaceSheet from '@/components/PlaceSheet';
+import FilterBar from '@/components/FilterBar';
+import ResultListSheet from '@/components/ResultListSheet';
 import { Place } from '@/types';
 import { Locate, ArrowLeft } from 'lucide-react';
 import { MapRef } from '@/components/MapComponent';
@@ -14,11 +16,15 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
 });
 
 import { useSearchParams } from 'next/navigation';
-// ... other imports
 
 function MapContent() {
   const [places, setPlaces] = useState<Place[]>([]);
+  const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'restaurant' | 'drink'>('all');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [routeInfo, setRouteInfo] = useState<{ distance: string; time: string } | null>(null);
   const mapRef = useRef<MapRef>(null);
   const searchParams = useSearchParams();
   const cityParam = searchParams.get('city');
@@ -36,6 +42,7 @@ function MapContent() {
           : allPlaces;
 
         setPlaces(filteredByCity);
+        setFilteredPlaces(filteredByCity);
       } catch (error) {
         console.error('Failed to fetch places:', error);
       }
@@ -43,11 +50,22 @@ function MapContent() {
     fetchPlaces();
   }, [cityParam]);
 
+  // Handle Filtering
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setFilteredPlaces(places);
+    } else {
+      setFilteredPlaces(places.filter(p => p.category === activeFilter));
+    }
+  }, [activeFilter, places]);
+
   const handleResetLocation = () => {
     if (mapRef.current) {
       mapRef.current.resetLocation();
     }
   };
+
+
 
   return (
     <main className="relative w-full h-[100dvh] overflow-hidden">
@@ -62,23 +80,40 @@ function MapContent() {
 
       <MapComponent
         ref={mapRef}
-        places={places}
+        places={filteredPlaces}
         onMarkerClick={setSelectedPlace}
         selectedPlaceId={selectedPlace?.id}
         targetCity={cityParam || undefined}
+        onRouteCalculated={setRouteInfo}
+        onUserLocationUpdate={setUserLocation}
       />
 
+      {/* Filter Bar */}
+      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+
+      {/* Location Reset Button */}
+      {/* Moved up slightly to avoid bottom sheet collision if needed, but absolute positioning handles it */}
       <button
         onClick={handleResetLocation}
-        className="absolute bottom-24 right-4 z-10 w-12 h-12 bg-[#ffffff85] backdrop-blur-md rounded-full border border-white/50 shadow-soft-1 flex items-center justify-center hover:bg-white/80 transition-all duration-300 active:scale-95"
+        className="absolute bottom-[100px] right-4 z-10 w-12 h-12 bg-[#ffffff85] backdrop-blur-md rounded-full border border-white/50 shadow-soft-1 flex items-center justify-center hover:bg-white/80 transition-all duration-300 active:scale-95"
         aria-label="重置位置"
       >
         <Locate className="w-6 h-6 text-gray-700" />
       </button>
 
+      {/* Result List Sheet (Only show if no place selected) */}
+      {!selectedPlace && (
+        <ResultListSheet
+          places={filteredPlaces}
+          userLocation={userLocation}
+          onPlaceClick={setSelectedPlace}
+        />
+      )}
+
       <PlaceSheet
         place={selectedPlace}
         onClose={() => setSelectedPlace(null)}
+        travelInfo={routeInfo}
       />
     </main>
   );

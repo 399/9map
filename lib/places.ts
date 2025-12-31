@@ -122,6 +122,7 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
                 opening_hours: fields['opening_hours'] || '',
                 average_price: fields['average_price'] || '',
                 sub_category: fields['category_link'] || '',
+                business_area: fields['BusinessArea'] || '',
             };
         })
         .filter((place) => {

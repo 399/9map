@@ -11,13 +11,15 @@ interface MapComponentProps {
     onMarkerClick: (place: Place) => void;
     selectedPlaceId?: string;
     targetCity?: string;
+    onRouteCalculated?: (info: { distance: string; time: string } | null) => void;
+    onUserLocationUpdate?: (location: [number, number]) => void;
 }
 
 export interface MapRef {
     resetLocation: () => void;
 }
 
-const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerClick, selectedPlaceId, targetCity }, ref) => {
+const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerClick, selectedPlaceId, targetCity, onRouteCalculated }, ref) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapInstance = useRef<any>(null);
@@ -33,6 +35,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     const [locationFailed, setLocationFailed] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const geolocationRef = useRef<any>(null);
+    const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
     useImperativeHandle(ref, () => ({
         resetLocation: () => {
@@ -53,12 +56,12 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         AMapLoader.load({
             key: process.env.NEXT_PUBLIC_AMAP_KEY || '',
             version: '2.0',
-            plugins: ['AMap.Geolocation', 'AMap.Scale', 'AMap.ToolBar', 'AMap.DistrictSearch'],
+            plugins: ['AMap.Geolocation', 'AMap.Scale', 'AMap.ToolBar', 'AMap.DistrictSearch', 'AMap.Driving', 'AMap.Geocoder'],
         })
             .then((AMap) => {
                 const map = new AMap.Map(mapContainer.current, {
                     viewMode: '3D',
-                    zoom: 11,
+                    zoom: 13, // Initial zoom synced with geolocation zoom
                     center: [121.4737, 31.2304], // Default Shanghai
                     mapStyle: 'amap://styles/light',
                 });
@@ -92,6 +95,9 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                         geolocation.on('complete', (result: any) => {
                             console.log(`📍 Geolocation Success (${useHighAccuracy ? 'High' : 'Low'} Accuracy):`, result);
                             setUserLocation(result);
+                            if (result.position && onUserLocationUpdate) {
+                                onUserLocationUpdate([result.position.lng, result.position.lat]);
+                            }
                         });
 
                         geolocation.on('error', (err: any) => {
@@ -125,7 +131,45 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     }, []);
 
     // Helper to generate marker content
-    const getMarkerContent = (place: Place, isSelected: boolean, clusterCount: number = 1) => {
+    const getMarkerContent = (place: Place, isSelected: boolean, variant: 'full' | 'dot' = 'full') => {
+        // DOT MODE CONTENT
+        if (variant === 'dot') {
+            const dot = document.createElement('div');
+            dot.className = 'marker-dot';
+            dot.style.cssText = `
+                width: 12px;
+                height: 12px;
+                background-color: white;
+                border: 2px solid #374151; /* gray-700 */
+                border-radius: 50%;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                cursor: pointer;
+                pointer-events: auto;
+                transform: translate(-50%, -50%);
+                position: relative;
+                z-index: 50; /* Below full markers */
+                transition: transform 0.2s;
+            `;
+
+            // Hover effect
+            dot.onmouseover = () => { dot.style.transform = 'translate(-50%, -50%) scale(1.3)'; };
+            dot.onmouseout = () => { dot.style.transform = 'translate(-50%, -50%) scale(1)'; };
+
+            // Click Handler
+            dot.onclick = (e) => {
+                e.stopPropagation();
+                if (mapInstance.current) {
+                    const map = mapInstance.current;
+                    map.panTo(new (window as any).AMap.LngLat(place.location[0], place.location[1]));
+                    // Maintain current zoom unless it's very zoomed out (optional, based on user request "maintain")
+                    // User request: "Maintain current zoom, don't stretch"
+                }
+                onMarkerClick(place);
+            };
+            return dot;
+        }
+
+        // FULL MODE CONTENT
         let IconComponent = MapPin;
         let iconColor = '#6b7280'; // gray-500
 
@@ -155,7 +199,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
 
         const scale = isSelected ? 1.25 : 1;
         const shadow = isSelected ? selectedShadow : normalShadow;
-        const zIndex = isSelected ? 999 : 1;
+        const zIndex = isSelected ? 999 : 100;
 
         // Container
         const container = document.createElement('div');
@@ -194,32 +238,6 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         `;
         iconDiv.innerHTML = iconHtml;
 
-        // Badge
-        if (clusterCount > 1) {
-            const badge = document.createElement('div');
-            badge.style.cssText = `
-                 position: absolute;
-                 top: -6px;
-                 right: -6px;
-                 background-color: #EF4444;
-                 color: white;
-                 border-radius: 99px;
-                 padding: 0 5px;
-                 font-size: 11px;
-                 font-weight: bold;
-                 border: 1.5px solid white;
-                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                 min-width: 18px;
-                 height: 18px;
-                 display: flex;
-                 align-items: center;
-                 justify-content: center;
-                 z-index: 10;
-             `;
-            badge.textContent = `+${clusterCount - 1}`;
-            iconDiv.appendChild(badge);
-        }
-
         // Label
         const labelDiv = document.createElement('div');
         labelDiv.className = 'marker-label';
@@ -255,17 +273,37 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         };
 
         // Click Handler (Directly on Icon)
-        iconDiv.onclick = (e) => {
-            e.stopPropagation(); // Stop bubbling (though AMap clickable:false should handle it)
+        const handleClick = (e: MouseEvent) => {
+            e.stopPropagation();
             if (mapInstance.current) {
                 const map = mapInstance.current;
-                // Pan to location
-                map.panTo(new (window as any).AMap.LngLat(place.location[0], place.location[1]));
-                if (map.getZoom() < 17) map.setZoom(17);
+                const targetLngLat = new (window as any).AMap.LngLat(place.location[0], place.location[1]);
+
+                // Smart Pan: Only pan if obscured by Bottom Sheet
+                const pixel = map.lngLatToContainer(targetLngLat);
+                const containerHeight = map.getContainer().clientHeight;
+                const containerWidth = map.getContainer().clientWidth;
+
+                // Estimate Bottom Sheet Height (when expanded) approx 380px
+                const BOTTOM_OBSCURED_HEIGHT = 400;
+                // Also adding top/side padding to ensure it's comfortably visible
+                const TOP_PADDING = 100;
+                const SIDE_PADDING = 50;
+
+                const isObscuredBottom = pixel.y > (containerHeight - BOTTOM_OBSCURED_HEIGHT);
+                const isObscuredTop = pixel.y < TOP_PADDING;
+                const isObscuredSide = pixel.x < SIDE_PADDING || pixel.x > (containerWidth - SIDE_PADDING);
+
+                if (isObscuredBottom || isObscuredTop || isObscuredSide) {
+                    // Pan to center (simple and robust)
+                    map.panTo(targetLngLat);
+                }
+                // Else: It's clearly visible, so don't move the map (User Request)
             }
             onMarkerClick(place);
         };
 
+        iconDiv.onclick = handleClick;
         return container;
     };
 
@@ -300,8 +338,8 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         }
 
         // Keep track of markers that should remain (using representative Place IDs)
-        const clustersToRender = new Map<string, { place: Place, count: number }>();
-        const processedPlaceIds = new Set<string>();
+        const activeMarkerIds = new Set<string>();
+        const occupiedRegions: { x: number, y: number }[] = [];
 
         // Sort places: Selected place first (to ensure it becomes cluster head), then by latitude
         const sortedPlaces = [...places].sort((a, b) => {
@@ -310,67 +348,54 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             return b.location[1] - a.location[1]; // Stable deterministic sort
         });
 
-        // Clustering Logic
-        sortedPlaces.forEach(place => {
-            if (processedPlaceIds.has(place.id)) return;
+        const CLUSTER_THRESHOLD = 50; // px - Increased to ensure dots appear when crowded
 
+        sortedPlaces.forEach(place => {
             const [lng, lat] = place.location;
             if (!bounds.contains(new AMap.LngLat(lng, lat))) return; // Skip invisible
 
             const pixel = map.lngLatToContainer(new AMap.LngLat(lng, lat));
 
-            // Start a new cluster with this place as head
-            let clusterCount = 1;
-            processedPlaceIds.add(place.id);
-
-            // Find neighbors
-            sortedPlaces.forEach(neighbor => {
-                if (place.id === neighbor.id || processedPlaceIds.has(neighbor.id)) return;
-
-                const [nLng, nLat] = neighbor.location;
-                // Basic bounds check first for speed
-                if (!bounds.contains(new AMap.LngLat(nLng, nLat))) return;
-
-                const nPixel = map.lngLatToContainer(new AMap.LngLat(nLng, nLat));
-                const distance = Math.sqrt(Math.pow(pixel.x - nPixel.x, 2) + Math.pow(pixel.y - nPixel.y, 2));
-
-                if (distance < 60) { // Cluster Threshold: 60px
-                    clusterCount++;
-                    processedPlaceIds.add(neighbor.id);
+            // Check collision with existing FULL markers
+            let isColliding = false;
+            for (const region of occupiedRegions) {
+                const distance = Math.sqrt(Math.pow(pixel.x - region.x, 2) + Math.pow(pixel.y - region.y, 2));
+                if (distance < CLUSTER_THRESHOLD) {
+                    isColliding = true;
+                    break;
                 }
-            });
+            }
 
-            // Add the head place to render list
-            clustersToRender.set(place.id, { place, count: clusterCount });
-        });
+            const variant = isColliding ? 'dot' : 'full';
 
-        // Render Clusters
-        const activeMarkerIds = new Set<string>();
+            // Mark this region as occupied regardless of variant (Dots also take up space)
+            // This prevents "Full" markers from overlapping "Dots', creating a cleaner chain
+            occupiedRegions.push({ x: pixel.x, y: pixel.y });
 
-        clustersToRender.forEach(({ place, count }) => {
+            // Render Marker
             activeMarkerIds.add(place.id);
-            const [lng, lat] = place.location;
             let marker = markersRef.current.get(place.id);
             const isSelected = place.id === selectedPlaceId;
 
             // Check if updates are needed using extData
             const needsUpdate = !marker ||
                 (marker.getExtData && marker.getExtData().isSelected !== isSelected) ||
-                (marker.getExtData && marker.getExtData().count !== count);
+                (marker.getExtData && marker.getExtData().variant !== variant);
 
             if (needsUpdate) {
-                const content = getMarkerContent(place, isSelected, count);
+                // Pass variant to generation function
+                const content = getMarkerContent(place, isSelected, variant);
 
                 if (!marker) {
                     // Create new marker
                     marker = new AMap.Marker({
                         position: new AMap.LngLat(lng, lat),
                         content: content,
-                        offset: new AMap.Pixel(0, 0),
+                        offset: variant === 'dot' ? new AMap.Pixel(0, 0) : new AMap.Pixel(0, 0),
                         anchor: 'center',
-                        zIndex: isSelected ? 999 : 100,
-                        clickable: false, // Critical: Disable AMap internal click handling so our DOM events work
-                        extData: { id: place.id, isSelected, count }
+                        zIndex: isSelected ? 999 : (variant === 'dot' ? 50 : 100),
+                        clickable: false, // Critical: Disable AMap internal click handling
+                        extData: { id: place.id, isSelected, variant }
                     });
 
                     marker.setMap(map);
@@ -378,18 +403,21 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                 } else {
                     // Update existing
                     marker.setContent(content);
-                    marker.setExtData({ id: place.id, isSelected, count });
+                    marker.setExtData({ id: place.id, isSelected, variant });
 
                     // Update Z-Index
-                    const targetZIndex = isSelected ? 999 : 100;
+                    const targetZIndex = isSelected ? 999 : (variant === 'dot' ? 50 : 100);
                     if (typeof marker.setzIndex === 'function') marker.setzIndex(targetZIndex);
                     else if (typeof marker.setZIndex === 'function') marker.setZIndex(targetZIndex);
 
                     // Update position
                     marker.setPosition(new AMap.LngLat(lng, lat));
+
+                    // Update Offset/Anchor if changing variants (full <-> dot)
+                    // Currently both are center anchored, but let's be safe.
+                    // marker.setAnchor('center'); 
                 }
             } else {
-                // Just update position if needed (usually stable)
                 marker.setPosition(new AMap.LngLat(lng, lat));
             }
         });
@@ -432,6 +460,89 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             }
         };
     }, [places, isMapReady, selectedPlaceId, onMarkerClick]); // Re-run if these change
+
+    // Calculate Route when selection changes
+    useEffect(() => {
+        if (!isMapReady || !mapInstance.current || !selectedPlaceId || !onMarkerClick || !onRouteCalculated) {
+            return;
+        }
+
+        const place = places.find(p => p.id === selectedPlaceId);
+        if (!place) return;
+
+        // Verify User Location
+        // Note: userLocation might be null if failed. 
+        // We can check geolocationRef.current check status? Or just rely on userLocation state.
+        // Assuming userLocation is set from Geolocation success
+        if (!userLocation) {
+            console.log('User location not ready for route calculation');
+            if (onRouteCalculated) onRouteCalculated(null);
+            return;
+        }
+
+        const map = mapInstance.current;
+        const AMap = (window as any).AMap;
+
+        // Load Driving Plugin specifically if not ready (though we preloaded it)
+        map.plugin('AMap.Driving', function () {
+            const driving = new AMap.Driving({
+                policy: AMap.DrivingPolicy.LEAST_TIME,
+                map: null, // Don't draw route on map automatically (user just wants info?)
+                // If user wants lines, set map: map. But typically this is for info only.
+                // User said "Show distance and time", didn't explicitly say "Draw line".
+                // "Lightweight" implies maybe don't draw messy lines unless asked.
+                // Let's NOT set map: map to keep it clean, just fetch data.
+            });
+
+            const start = new AMap.LngLat(userLocation.position.lng, userLocation.position.lat);
+            const end = new AMap.LngLat(place.location[0], place.location[1]);
+
+            console.log('🚗 Calculating route...', start, end);
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            driving.search(start, end, function (status: string, result: any) {
+                if (status === 'complete') {
+                    if (result.routes && result.routes.length) {
+                        const route = result.routes[0];
+                        const distance = route.distance; // meters
+                        const time = route.time; // seconds
+
+                        // Format
+                        let distanceText = '';
+                        if (distance > 1000) {
+                            distanceText = (distance / 1000).toFixed(1) + 'km';
+                        } else {
+                            distanceText = distance + 'm';
+                        }
+
+                        // Format Time
+                        let timeText = '';
+                        const hours = Math.floor(time / 3600);
+                        const minutes = Math.ceil((time % 3600) / 60);
+
+                        if (hours > 0) {
+                            timeText = `${hours}小时${minutes}分钟`;
+                        } else {
+                            timeText = `${minutes}分钟`;
+                        }
+
+                        // Callback
+                        if (onRouteCalculated) {
+                            onRouteCalculated({
+                                distance: distanceText,
+                                time: timeText,
+                                // Future: tolls, traffic lights could go here
+                            });
+                        }
+                    }
+                } else {
+                    console.warn('Driving route failed:', result);
+                    if (onRouteCalculated) onRouteCalculated(null);
+                }
+            });
+        });
+
+    }, [selectedPlaceId, userLocation, isMapReady, places, onRouteCalculated, onMarkerClick]); // Depend on userLocation to retry if it comes late
 
     // Efficiently update selected state without re-creating markers
     useEffect(() => {
@@ -507,22 +618,18 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             map.setCenter(result.position);
             map.setZoom(13); // Position Lock Zoom Level
         } else {
-            // User is NOT in the city OR Geolocation Failed -> Fit all places
+            // User is NOT in the city OR Geolocation Failed -> Center on places with fixed Zoom 13
             if (places.length > 0) {
-                let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
+                let totalLng = 0, totalLat = 0;
                 places.forEach(p => {
-                    const [lng, lat] = p.location;
-                    if (lng < minLng) minLng = lng;
-                    if (lng > maxLng) maxLng = lng;
-                    if (lat < minLat) minLat = lat;
-                    if (lat > maxLat) maxLat = lat;
+                    totalLng += p.location[0];
+                    totalLat += p.location[1];
                 });
+                const centerLng = totalLng / places.length;
+                const centerLat = totalLat / places.length;
 
-                const bounds = new AMap.Bounds(
-                    new AMap.LngLat(minLng, minLat),
-                    new AMap.LngLat(maxLng, maxLat)
-                );
-                map.setBounds(bounds);
+                map.setCenter(new AMap.LngLat(centerLng, centerLat));
+                map.setZoom(13); // Fixed zoom level to match "In City" experience
             }
         }
     }, [isMapReady, userLocation, locationFailed, places, targetCity]);
