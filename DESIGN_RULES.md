@@ -28,3 +28,11 @@ Refactor specific implementations (like `PlaceSheet`) to use a shared `BottomShe
 1.  Drag event listeners (`touchstart`, `touchmove`, `touchend`).
 2.  State management (`isExpanded`).
 3.  Animation interpolation.
+
+## 2. Development Process
+
+### 2.1 Pre-Commit Check
+Before submitting any code to GitHub, the following **must** be executed locally to ensure stability:
+1.  **Build Check**: Run `pnpm build` to verify that the project builds successfully.
+2.  **Lint Check**: Run `pnpm lint` to catch static analysis errors.
+3.  **Self-Review**: Briefly review `git status` and changed files to ensure no accidental files are included.

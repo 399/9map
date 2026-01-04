@@ -19,7 +19,7 @@ export interface MapRef {
     resetLocation: () => void;
 }
 
-const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerClick, selectedPlaceId, targetCity, onRouteCalculated }, ref) => {
+const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerClick, selectedPlaceId, targetCity, onRouteCalculated, onUserLocationUpdate }, ref) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mapInstance = useRef<any>(null);

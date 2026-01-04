@@ -59,7 +59,7 @@ async function updateBusinessAreas() {
 
         let updatedCount = 0;
         let skippedCount = 0;
-        let diffCount = 0;
+        const diffCount = 0;
 
         for (const item of items) {
             const fields = item.fields;
