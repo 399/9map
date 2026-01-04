@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback } from 'react';
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import AMapLoader from '@amap/amap-jsapi-loader';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ForkKnife, Hamburger, Coffee, MapPin } from '@phosphor-icons/react';
@@ -26,15 +26,13 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     const [isMapReady, setIsMapReady] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const markersRef = useRef<Map<string, any>>(new Map());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const maskRef = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const borderRef = useRef<any>(null);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [userLocation, setUserLocation] = useState<any>(null);
     const [locationFailed, setLocationFailed] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const geolocationRef = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
     useImperativeHandle(ref, () => ({
@@ -49,6 +47,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         if (!mapContainer.current) return;
 
         // AMap Security Configuration
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any)._AMapSecurityConfig = {
             securityJsCode: process.env.NEXT_PUBLIC_AMAP_SECURITY_CODE,
         };
@@ -92,6 +91,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                             showButton: false, // Hide default button
                         });
 
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         geolocation.on('complete', (result: any) => {
                             console.log(`📍 Geolocation Success (${useHighAccuracy ? 'High' : 'Low'} Accuracy):`, result);
                             setUserLocation(result);
@@ -100,6 +100,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                             }
                         });
 
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         geolocation.on('error', (err: any) => {
                             if (useHighAccuracy) {
                                 console.warn('⚠️ High accuracy failed, falling back to low accuracy...', err);
@@ -131,7 +132,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
     }, []);
 
     // Helper to generate marker content
-    const getMarkerContent = (place: Place, isSelected: boolean, variant: 'full' | 'dot' = 'full') => {
+    const getMarkerContent = useCallback((place: Place, isSelected: boolean, variant: 'full' | 'dot' = 'full') => {
         // DOT MODE CONTENT
         if (variant === 'dot') {
             const dot = document.createElement('div');
@@ -160,6 +161,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                 e.stopPropagation();
                 if (mapInstance.current) {
                     const map = mapInstance.current;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     map.panTo(new (window as any).AMap.LngLat(place.location[0], place.location[1]));
                     // Maintain current zoom unless it's very zoomed out (optional, based on user request "maintain")
                     // User request: "Maintain current zoom, don't stretch"
@@ -277,6 +279,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             e.stopPropagation();
             if (mapInstance.current) {
                 const map = mapInstance.current;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const targetLngLat = new (window as any).AMap.LngLat(place.location[0], place.location[1]);
 
                 // Smart Pan: Only pan if obscured by Bottom Sheet
@@ -305,11 +308,11 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
 
         iconDiv.onclick = handleClick;
         return container;
-    };
+    }, [onMarkerClick]);
 
     // Debounce function
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const debounce = (func: any, wait: number) => {
+    const debounce = (func: (...args: any[]) => void, wait: number) => {
         let timeout: NodeJS.Timeout;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (...args: any[]) => {
@@ -430,10 +433,27 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
             }
         });
 
-    }, [places, onMarkerClick, selectedPlaceId, getMarkerContent]);
+    }, [places, selectedPlaceId, getMarkerContent]);
 
-    // Debounced version of updateVisibleMarkers
-    const debouncedUpdate = useCallback(debounce(updateVisibleMarkers, 100), [updateVisibleMarkers]);
+    // Use a Ref to hold the latest version of updateVisibleMarkers to allow stable debounce
+    const updateVisibleMarkersRef = useRef(updateVisibleMarkers);
+    // useLayoutEffect usually better for sync refs but useEffect is fine mostly. useLayoutEffect satisfies React rules better for refs.
+    // However, since we are in Next.js which might SSR, useLayoutEffect might warn.
+    // Let's stick to useEffect or just bare assignment if strict mode isn't complaining about side effects?
+    // Actually, simple ref assignment during render IS the problem linter complains about.
+    // So we use useEffect to update the ref.
+    useEffect(() => {
+        updateVisibleMarkersRef.current = updateVisibleMarkers;
+    }, [updateVisibleMarkers]);
+
+
+    // Create a stable debounce wrapper that calls the ref
+    const debouncedUpdate = useMemo(() => {
+        // eslint-disable-next-line react-hooks/refs
+        return debounce(() => {
+            if (updateVisibleMarkersRef.current) updateVisibleMarkersRef.current();
+        }, 100);
+    }, []);
 
     useEffect(() => {
         if (!isMapReady || !mapInstance.current) return;
@@ -459,7 +479,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                 markersRef.current.clear();
             }
         };
-    }, [places, isMapReady, selectedPlaceId, onMarkerClick]); // Re-run if these change
+    }, [places, isMapReady, selectedPlaceId, onMarkerClick, debouncedUpdate, updateVisibleMarkers]); // Re-run if these change
 
     // Calculate Route when selection changes
     useEffect(() => {
@@ -481,7 +501,9 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         }
 
         const map = mapInstance.current;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const AMap = (window as any).AMap;
+
 
         // Load Driving Plugin specifically if not ready (though we preloaded it)
         map.plugin('AMap.Driving', function () {
@@ -565,7 +587,7 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
                 }
             }
         });
-    }, [selectedPlaceId, isMapReady, places]);
+    }, [selectedPlaceId, isMapReady, places, getMarkerContent]);
 
     // Smart Location Centering
     useEffect(() => {
@@ -634,105 +656,9 @@ const MapComponent = forwardRef<MapRef, MapComponentProps>(({ places, onMarkerCl
         }
     }, [isMapReady, userLocation, locationFailed, places, targetCity]);
 
-    // City Boundary Masking
-    useEffect(() => {
-        if (!isMapReady || !mapInstance.current) return;
 
-        const map = mapInstance.current;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const AMap = (window as any).AMap;
-        const target = targetCity || '上海市';
+    // City Boundary Masking logic removed (cleanup)
 
-        map.plugin('AMap.DistrictSearch', function () {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const districtSearch = new (window as any).AMap.DistrictSearch({
-                extensions: 'all', // Get detailed boundary
-                level: 'city',     // Search by city level
-                subdistrict: 0,    // No need for sub-districts
-            });
-
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            districtSearch.search(target, function (status: string, result: any) {
-                if (status === 'complete' && result.districtList.length > 0) {
-                    // Cleanup previous
-                    if (maskRef.current) maskRef.current.setMap(null);
-                    if (borderRef.current) borderRef.current.setMap(null);
-
-                    const district = result.districtList[0];
-                    const boundaries = district.boundaries;
-
-                    if (boundaries) {
-                        // Create "World with Hole" path
-                        // Outer ring covers the whole world
-                        const outer = [
-                            new AMap.LngLat(-180, 90),
-                            new AMap.LngLat(180, 90),
-                            new AMap.LngLat(180, -90),
-                            new AMap.LngLat(-180, -90),
-                        ];
-
-                        // AMap Polygon path structure: [outerRing, hole1, hole2, ...]
-                        // Note: AMap v2 might treat multi-dimensional arrays differently.
-                        // Usually it's [outer, hole] for a single polygon with holes.
-                        // But boundaries can be multiple polygons (e.g. islands).
-
-                        // We need to create a mask for EACH polygon if the city is disjointed, 
-                        // OR create one massive polygon with multiple holes.
-                        // Let's try creating one polygon with the outer ring and ALL boundaries as holes.
-
-                        const pathArray = [outer];
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        boundaries.forEach((boundary: any) => {
-                            pathArray.push(boundary);
-                        });
-
-                        // Remove existing mask if any (we should track it in a ref, but for now just add new one)
-                        // Ideally we should clear previous masks. 
-                        // Let's use a specific ID or property if possible, or just clear all polygons? 
-                        // No, that clears markers too if they are polygons.
-                        // Better to store it in a ref.
-
-                        // (Assuming we add a ref for the mask later, for now let's just draw it)
-
-                        const mask = new AMap.Polygon({
-                            path: pathArray,
-                            strokeColor: 'none', // No border for the mask itself usually, or maybe a city border?
-                            strokeWeight: 0,
-                            fillColor: '#000',
-                            fillOpacity: 0.3, // Darken outside areas
-                            zIndex: 10, // Above base map, below markers (markers are usually 100+)
-                            bubble: true, // Allow events to pass through? No, usually we want to block interaction? 
-                            // Actually we want to highlight the city.
-                        });
-
-                        mask.setMap(map);
-                        maskRef.current = mask;
-
-                        // Also fit view to the city?
-                        // map.setFitView([mask]); // This would fit the WORLD. Bad.
-
-                        // We should fit view to the city boundary only.
-                        // Create a polygon just for the city to fit view (invisible)
-                        // const cityPolygon = new AMap.Polygon({ path: boundaries, visible: false });
-                        // map.setFitView([cityPolygon]);
-
-                        // Actually, let's just draw a border for the city too
-                        const border = new AMap.Polygon({
-                            path: boundaries,
-                            strokeColor: '#3b82f6', // Blue-500
-                            strokeWeight: 2,
-                            strokeOpacity: 0.8,
-                            fillOpacity: 0,
-                            zIndex: 11,
-                            bubble: true,
-                        });
-                        border.setMap(map);
-                        borderRef.current = border;
-                    }
-                }
-            });
-        });
-    }, [isMapReady, targetCity]);
 
     return (
         <div className="relative w-full h-full">

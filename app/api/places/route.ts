@@ -9,7 +9,9 @@ export async function GET(request: Request) {
         const places = await fetchPlaces({ type: type || 'full' });
 
         return NextResponse.json({ data: places });
-    } catch (error: any) {
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    catch (error: any) {
         console.error('Feishu API Error:', error);
         return NextResponse.json({ data: [], error: error.message || 'Failed to fetch data' }, { status: 500 });
     }

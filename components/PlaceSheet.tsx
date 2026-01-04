@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Place } from '@/types';
 import BottomSheet from './BottomSheet';
-import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Quotes, ForkKnife, Coffee, Hamburger, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, Sparkle, MapPin, HandsClapping, ThumbsDown, Eyes, Car, NavigationArrow, Copy } from '@phosphor-icons/react';
+import { X, ClockCountdown, MapPinArea, CaretUp, CaretDown, Storefront, CalendarPlus, LetterCircleP, Armchair, FinnTheHuman, HandsClapping, ThumbsDown, Eyes, NavigationArrow, Copy, MapPin } from '@phosphor-icons/react';
 
 interface PlaceSheetProps {
     place: Place | null;
@@ -11,7 +11,6 @@ interface PlaceSheetProps {
 
 export default function PlaceSheet({ place, onClose, travelInfo }: PlaceSheetProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const sheetRef = useRef<HTMLDivElement>(null);
 
     // Touch handling state removed (moved to BottomSheet)
 
@@ -25,15 +24,6 @@ export default function PlaceSheet({ place, onClose, travelInfo }: PlaceSheetPro
     }, [place]);
 
     if (!place) return null;
-
-    const handleExpand = () => {
-        setIsExpanded(true);
-    };
-
-    const handleCollapse = (e?: React.MouseEvent) => {
-        e?.stopPropagation();
-        setIsExpanded(false);
-    };
 
     const handleClose = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -66,9 +56,10 @@ export default function PlaceSheet({ place, onClose, travelInfo }: PlaceSheetPro
         // Reset src when place changes
         useEffect(() => {
             setSrc(primarySrc);
-        }, [place.sub_category, place.category]);
+        }, [primarySrc]); // Fix: Added primarySrc as dependency
 
         return (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
                 src={src}
                 alt={place.sub_category || categoryName}
@@ -96,13 +87,6 @@ export default function PlaceSheet({ place, onClose, travelInfo }: PlaceSheetPro
             return `${label} · ${place.sub_category}`;
         }
         return label;
-    };
-
-    const getCategoryColor = () => {
-        if (place.category === 'restaurant') return 'bg-orange-100 text-orange-800';
-        if (place.category === 'drink') return 'bg-blue-100 text-blue-800';
-        if (place.category === 'snack') return 'bg-yellow-100 text-yellow-800';
-        return 'bg-gray-100 text-gray-800';
     };
 
     const getTagIcon = (tag: string) => {

@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Place } from '@/types';
 import BottomSheet from './BottomSheet';
 import { getDistance } from 'geolib';
-import { MapPin, NavigationArrow, Storefront, ForkKnife, Coffee, Hamburger } from '@phosphor-icons/react';
+import { Storefront, ForkKnife, Coffee, Hamburger } from '@phosphor-icons/react';
 
 interface ResultListSheetProps {
     places: Place[];
@@ -12,8 +12,38 @@ interface ResultListSheetProps {
 
 export default function ResultListSheet({ places, userLocation, onPlaceClick }: ResultListSheetProps) {
     const [isExpanded, setIsExpanded] = useState(false);
+    // Use a key to force reset state when places change, rather than useEffect
+    // Or just let it be handled by logic. For 20 init doc, we can use a key on the container? 
+    // Actually, setting state in useEffect when props change IS valid if done right, 
+    // but React warns against cascading updates.
+    // Better strategy: Derive visible slice from a "page" state that resets when places change.
+
+    // Simplest fix for "setState in useEffect": Use a key on the component or just accept that 
+    // when places change, we want to reset.
+    // The lint error was "Calling setState synchronously within an effect".
+    // Warning was: "Calling setState synchronously within an effect body causes cascading renders".
+
+    // Let's use useMemo for the visible count reset logic OR just use a key.
+    // Using a Ref to track previous places length?
+
+    // Easier: Just reset count in the same place we sort? No, sortedPlaces is memoized.
+
     const [visibleCount, setVisibleCount] = useState(20);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [prevPlaces, setPrevPlaces] = useState(places);
+
+    // 1. Reset visibleCount (State) when places change
+    if (prevPlaces !== places) {
+        setPrevPlaces(places);
+        setVisibleCount(20);
+    }
+
+    // 2. Reset Scroll (DOM) when places change - Done in Effect
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [places]);
 
     // Sort places by distance
     const sortedPlaces = useMemo(() => {
@@ -38,14 +68,6 @@ export default function ResultListSheet({ places, userLocation, onPlaceClick }: 
             setVisibleCount(prev => Math.min(prev + 20, sortedPlaces.length));
         }
     };
-
-    // Reset visible count when filter changes (places change)
-    useEffect(() => {
-        setVisibleCount(20);
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = 0;
-        }
-    }, [places]);
 
     const visiblePlaces = sortedPlaces.slice(0, visibleCount);
 

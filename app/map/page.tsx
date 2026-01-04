@@ -19,10 +19,8 @@ import { useSearchParams } from 'next/navigation';
 
 function MapContent() {
   const [places, setPlaces] = useState<Place[]>([]);
-  const [filteredPlaces, setFilteredPlaces] = useState<Place[]>([]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'restaurant' | 'drink'>('all');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; time: string } | null>(null);
   const mapRef = useRef<MapRef>(null);
@@ -42,21 +40,18 @@ function MapContent() {
           : allPlaces;
 
         setPlaces(filteredByCity);
-        setFilteredPlaces(filteredByCity);
       } catch (error) {
         console.error('Failed to fetch places:', error);
       }
     }
     fetchPlaces();
   }, [cityParam]);
-
   // Handle Filtering
-  useEffect(() => {
+  const filteredPlaces = useMemo(() => {
     if (activeFilter === 'all') {
-      setFilteredPlaces(places);
-    } else {
-      setFilteredPlaces(places.filter(p => p.category === activeFilter));
+      return places;
     }
+    return places.filter(p => p.category === activeFilter);
   }, [activeFilter, places]);
 
   const handleResetLocation = () => {

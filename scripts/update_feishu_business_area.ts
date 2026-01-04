@@ -7,15 +7,20 @@ import path from 'path';
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 // Configuration
-const AMAP_WEB_KEY = process.env.NEXT_PUBLIC_AMAP_WEB_KEY || ''; // We might need a separate server key, but let's try available ones first or ask user.
-// Update: User usually provides client key. The Regeo API needs "Web Service API" key.
-// If NEXT_PUBLIC_AMAP_KEY is for JS API, we might need another one. 
-// Assuming user might not have set it, I will add a placeholder and logs.
+// AMAP_WEB_KEY removed as it was unused and confusing
+// const AMAP_WEB_KEY = process.env.NEXT_PUBLIC_AMAP_WEB_KEY || ''; 
+
 // Using the same key from existing env if possible, or assume it's AMAP_WEB_KEY.
 // Actually, let's use the same KEY for now, but commonly JS key != Web key.
 // I will use 'process.env.AMAP_WEB_SERVICE_KEY' and fallback to 'process.env.NEXT_PUBLIC_AMAP_KEY' but warn.
 
 const AMAP_KEY = process.env.AMap_WEB_SERVICE_KEY || process.env.AMAP_WEB_SERVICE_KEY || process.env.NEXT_PUBLIC_AMAP_KEY;
+
+interface FeishuLocationField {
+    location: string;
+    address?: string;
+    cityname?: string;
+}
 
 async function updateBusinessAreas() {
     console.log('🚀 Starting Business Area Update Script...');
@@ -59,7 +64,7 @@ async function updateBusinessAreas() {
 
         let updatedCount = 0;
         let skippedCount = 0;
-        const diffCount = 0;
+        // diffCount removed as unused
 
         for (const item of items) {
             const fields = item.fields;
@@ -79,7 +84,7 @@ async function updateBusinessAreas() {
             // I'll assume 'Location' field contains geocoords.
             // Location field is lowercase 'location' and is an object
             // { location: "lng,lat", ... }
-            const locationVal = fields['location'] as any;
+            const locationVal = fields['location'] as FeishuLocationField | string | undefined;
 
             if (!locationVal) {
                 console.log(`⏭️  Skipping ${name}: No Location data.`);

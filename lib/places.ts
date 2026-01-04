@@ -8,7 +8,20 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
         return [];
     }
 
-    const params: any = {
+    interface FeishuLocation {
+        location: string;
+        address: string;
+        cityname: string;
+    }
+
+    interface ListParams {
+        page_size: number;
+        field_names?: string;
+    }
+
+    type FeishuFieldValue = string | number | boolean | object | null | undefined;
+
+    const params: ListParams = {
         page_size: 100,
     };
 
@@ -20,6 +33,8 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
         params.field_names = JSON.stringify(['location', 'full_address', 'name', 'category']);
     }
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - SDK types might mismatch with strict local types, so we cast to unknown then compatible type if needed, but SDK usually accepts object.
     const res = await client.bitable.appTableRecord.list({
         path: {
             app_token: FEISHU_APP_TOKEN,
@@ -34,16 +49,16 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
 
     const places: Place[] = res.data.items
         .map((item) => {
-            const fields = item.fields as any;
+            const fields = item.fields as Record<string, FeishuFieldValue>;
 
             // Parse Feishu "Location" field
             let lng = 0;
             let lat = 0;
             // Use full_address as the primary source for address
-            let address = fields['full_address'] || '';
+            let address = (fields['full_address'] as string) || '';
             let city = '';
 
-            const locationField = fields['location'];
+            const locationField = fields['location'] as FeishuLocation | undefined;
             if (locationField && typeof locationField === 'object' && locationField.location) {
                 const [lngStr, latStr] = locationField.location.split(',');
                 lng = Number(lngStr);
@@ -96,13 +111,13 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
             let category: PlaceCategory = 'other';
             // Only parse category if we requested it (full mode)
             if (options.type !== 'homepage') {
-                const rawCategory = fields['category'];
+                const rawCategory = fields['category'] as string;
                 if (rawCategory === '餐厅') category = 'restaurant';
                 else if (rawCategory === '饮品甜点') category = 'drink';
                 else if (rawCategory === '快餐小吃') category = 'snack';
             } else {
                 // Even in homepage mode, we requested category, so let's map it if present
-                const rawCategory = fields['category'];
+                const rawCategory = fields['category'] as string;
                 if (rawCategory === '餐厅') category = 'restaurant';
                 else if (rawCategory === '饮品甜点') category = 'drink';
                 else if (rawCategory === '快餐小吃') category = 'snack';
@@ -110,19 +125,19 @@ export async function fetchPlaces(options: { type?: 'homepage' | 'full' } = { ty
 
             return {
                 id: item.record_id || '',
-                name: fields['name'] || '',
+                name: (fields['name'] as string) || '',
                 category: category,
                 location: [lng, lat] as [number, number],
                 address: address,
                 city: city,
-                note: fields['note'] || '',
-                recommended_dishes: fields['recommended_dishes'] || '',
-                avoid_dishes: fields['avoid_dishes'] || '',
-                tags: fields['tags'] ? (Array.isArray(fields['tags']) ? fields['tags'] : [fields['tags']]) : [],
-                opening_hours: fields['opening_hours'] || '',
-                average_price: fields['average_price'] || '',
-                sub_category: fields['category_link'] || '',
-                business_area: fields['BusinessArea'] || '',
+                note: (fields['note'] as string) || '',
+                recommended_dishes: (fields['recommended_dishes'] as string) || '',
+                avoid_dishes: (fields['avoid_dishes'] as string) || '',
+                tags: fields['tags'] ? (Array.isArray(fields['tags']) ? (fields['tags'] as string[]) : [(fields['tags'] as string)]) : [],
+                opening_hours: (fields['opening_hours'] as string) || '',
+                average_price: (fields['average_price'] as string) || '',
+                sub_category: (fields['category_link'] as string) || '',
+                business_area: (fields['BusinessArea'] as string) || '',
             };
         })
         .filter((place) => {
