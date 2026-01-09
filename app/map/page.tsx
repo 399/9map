@@ -103,9 +103,10 @@ function MapContent() {
       <FilterBar
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
+        variant={isListExpanded ? 'inline' : 'pill'}
         className={`transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isListExpanded
-            ? 'top-[calc(1rem+env(safe-area-inset-top))] !bottom-auto !border-none !shadow-none !bg-transparent' /* Move to top, remove pill styles */
-            : '' /* Default is bottom-[140px] from FilterBar component */
+            ? 'top-[calc(1rem+env(safe-area-inset-top)+6px)] !bottom-auto' /* Top aligns with Back Button (h-12 vs h-9ish), add offset to center */
+            : '' /* Default is bottom-[140px] */
           }`}
       />
 

@@ -5,18 +5,27 @@ interface FilterBarProps {
     activeFilter: 'all' | 'restaurant' | 'drink';
     onFilterChange: (filter: 'all' | 'restaurant' | 'drink') => void;
     className?: string;
+    variant?: 'pill' | 'inline';
 }
 
-export default function FilterBar({ activeFilter, onFilterChange, className = '' }: FilterBarProps) {
+export default function FilterBar({ activeFilter, onFilterChange, className = '', variant = 'pill' }: FilterBarProps) {
     const filters: { id: 'all' | 'restaurant' | 'drink'; label: string; icon: React.ReactNode }[] = [
         { id: 'all', label: '全部', icon: <Stack size={16} weight="bold" /> },
         { id: 'restaurant', label: '美食', icon: <ForkKnife size={16} weight="bold" /> },
         { id: 'drink', label: '饮品', icon: <Coffee size={16} weight="bold" /> },
     ];
 
+    const isInline = variant === 'inline';
+
     return (
-        <div className={`absolute bottom-[140px] left-0 right-0 flex justify-center gap-3 z-[1500] pointer-events-none ${className}`}>
-            <div className={`flex bg-white/80 backdrop-blur-md rounded-full p-1.5 shadow-soft-1 pointer-events-auto border border-white/50 transition-all duration-500 ${className.includes('!bg-transparent') ? '!bg-transparent !border-transparent !shadow-none' : ''}`}>
+        <div className={`absolute bottom-[140px] left-0 right-0 flex justify-center gap-3 z-[1500] pointer-events-none transition-all duration-500 ${className}`}>
+            <div className={`
+                flex pointer-events-auto transition-all duration-500
+                ${isInline
+                    ? 'bg-transparent border-transparent shadow-none p-0 gap-1'
+                    : 'bg-white/80 backdrop-blur-md rounded-full p-1.5 shadow-soft-1 border border-white/50 gap-0'
+                }
+            `}>
                 {filters.map((filter) => {
                     const isActive = activeFilter === filter.id;
                     return (
