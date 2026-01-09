@@ -20,6 +20,7 @@ import { useSearchParams } from 'next/navigation';
 function MapContent() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [activeFilter, setActiveFilter] = useState<'all' | 'restaurant' | 'drink'>('all');
+  const [isListExpanded, setIsListExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; time: string } | null>(null);
@@ -93,7 +94,14 @@ function MapContent() {
       </button>
 
       {/* Filter Bar */}
-      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+      <FilterBar
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        className={`transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isListExpanded
+            ? 'top-[calc(1rem+env(safe-area-inset-top))] !bottom-auto' /* Move to top, align with back button */
+            : '' /* Default is bottom-[140px] from FilterBar component */
+          }`}
+      />
 
       {/* Result List Sheet (Only show if no place selected) */}
       {!selectedPlace && (
@@ -101,6 +109,8 @@ function MapContent() {
           places={filteredPlaces}
           userLocation={userLocation}
           onPlaceClick={setSelectedPlace}
+          isExpanded={isListExpanded}
+          onExpandChange={setIsListExpanded}
         />
       )}
 

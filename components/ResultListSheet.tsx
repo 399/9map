@@ -8,14 +8,18 @@ interface ResultListSheetProps {
     places: Place[];
     userLocation: [number, number] | null;
     onPlaceClick: (place: Place) => void;
+    isExpanded: boolean;
+    onExpandChange: (expanded: boolean) => void;
 }
 
 export default function ResultListSheet({
     places,
     userLocation,
-    onPlaceClick
+    onPlaceClick,
+    isExpanded,
+    onExpandChange
 }: ResultListSheetProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
+    // Local state removed in favor of props
     // Use a key to force reset state when places change, rather than useEffect
     // Or just let it be handled by logic. For 20 init doc, we can use a key on the container? 
     // Actually, setting state in useEffect when props change IS valid if done right, 
@@ -96,8 +100,8 @@ export default function ResultListSheet({
     return (
         <BottomSheet
             isExpanded={isExpanded}
-            onExpandChange={setIsExpanded}
-            onClose={() => setIsExpanded(false)} // Can't really "close" it to nothing, just collapse
+            onExpandChange={onExpandChange}
+            onClose={() => onExpandChange(false)} // Can't really "close" it to nothing, just collapse
             className={`!z-[1000] transition-all ${!isExpanded ? '!max-h-[110px]' : ''}`} // Lower z-index than PlaceSheet (2000), limit height when collapsed
         >
             {/* Header / Handle */}
@@ -135,7 +139,7 @@ export default function ResultListSheet({
                             className="flex gap-3 p-3 bg-white/60 hover:bg-white/80 active:bg-gray-100/50 backdrop-blur-sm rounded-xl border border-white/60 transition-colors cursor-pointer"
                             onClick={() => {
                                 // Collapse first, then select
-                                setIsExpanded(false);
+                                onExpandChange(false);
                                 onPlaceClick(place);
                             }}
                         >
