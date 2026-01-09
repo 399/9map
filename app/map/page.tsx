@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import PlaceSheet from '@/components/PlaceSheet';
+import FilterBar from '@/components/FilterBar';
 import ResultListSheet from '@/components/ResultListSheet';
 import { Place } from '@/types';
 import { Locate, ArrowLeft } from 'lucide-react';
@@ -91,14 +92,15 @@ function MapContent() {
         <Locate className="w-6 h-6 text-gray-700" />
       </button>
 
+      {/* Filter Bar */}
+      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
+
       {/* Result List Sheet (Only show if no place selected) */}
       {!selectedPlace && (
         <ResultListSheet
           places={filteredPlaces}
           userLocation={userLocation}
           onPlaceClick={setSelectedPlace}
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
         />
       )}
 

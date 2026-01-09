@@ -120,26 +120,19 @@ export default function BottomSheet({
 
         // currentY removed
 
-        const dragDuration = Date.now() - dragStartTime.current;
-        const velocity = Math.abs(currentDelta.current) / dragDuration;
+        // dragDuration removed (unused)
+        // velocity removed (unused)
 
         const threshold = 100;
         let shouldExpand = isExpanded;
-        let shouldClose = false;
+        const shouldClose = false;
 
         // Determine intended state
         if (!isExpanded) {
             if (currentDelta.current > threshold) {
                 shouldExpand = true;
-            } else {
-                // Dragged DOWN (negative delta)
-                const isLongDrag = currentDelta.current < -150; // Dragged down more than 150px
-                const isFastFlick = currentDelta.current < -50 && velocity > 0.5; // Short fast flick
-
-                if (isLongDrag || isFastFlick) {
-                    shouldClose = true;
-                }
             }
+            // "shouldClose" logic removed to prevent closing from collapsed state
         } else {
             if (currentDelta.current < -threshold) {
                 shouldExpand = false;

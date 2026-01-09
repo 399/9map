@@ -3,22 +3,17 @@ import { Place } from '@/types';
 import BottomSheet from './BottomSheet';
 import { getDistance } from 'geolib';
 import { Storefront, ForkKnife, Coffee, Hamburger } from '@phosphor-icons/react';
-import FilterBar from './FilterBar';
 
 interface ResultListSheetProps {
     places: Place[];
     userLocation: [number, number] | null;
     onPlaceClick: (place: Place) => void;
-    activeFilter: 'all' | 'restaurant' | 'drink';
-    onFilterChange: (filter: 'all' | 'restaurant' | 'drink') => void;
 }
 
 export default function ResultListSheet({
     places,
     userLocation,
-    onPlaceClick,
-    activeFilter,
-    onFilterChange
+    onPlaceClick
 }: ResultListSheetProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     // Use a key to force reset state when places change, rather than useEffect
@@ -124,15 +119,6 @@ export default function ResultListSheet({
                     <div className="text-[12px] text-gray-400 mb-1">
                         {userLocation ? '按距离排序' : '默认排序'}
                     </div>
-                </div>
-
-                {/* Filter Bar - Integrated and sticky-ready */}
-                <div className={`mt-3 px-4 pb-2 bg-transparent transition-all duration-300 ${isExpanded ? 'sticky top-0 z-30 pt-2' : ''}`}>
-                    <FilterBar
-                        activeFilter={activeFilter}
-                        onFilterChange={onFilterChange}
-                        className="!justify-start"
-                    />
                 </div>
             </div>
 
