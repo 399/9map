@@ -181,8 +181,8 @@ export default function BottomSheet({
             // Ideally we clear height to let it be auto, but max-height constrains it.
             // Let's reset height to empty string to let CSS take over (like in original cleanup)
             sheetRef.current.style.height = '';
-            sheetRef.current.style.maxHeight = '40vh';
-            sheetRef.current.style.borderRadius = '38px';
+            sheetRef.current.style.maxHeight = ''; // Let CSS class handle it
+            sheetRef.current.style.borderRadius = '24px 24px 24px 24px'; // Fix border radius consistency
         }
 
         // 4. Update State

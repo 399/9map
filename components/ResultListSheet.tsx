@@ -98,7 +98,7 @@ export default function ResultListSheet({
             isExpanded={isExpanded}
             onExpandChange={setIsExpanded}
             onClose={() => setIsExpanded(false)} // Can't really "close" it to nothing, just collapse
-            className="!z-[1000]" // Lower z-index than PlaceSheet (2000)
+            className={`!z-[1000] transition-all ${!isExpanded ? '!max-h-[110px]' : ''}`} // Lower z-index than PlaceSheet (2000), limit height when collapsed
         >
             {/* Header / Handle */}
             <div className="relative pt-4 pb-2 flex-shrink-0 drag-handle-area">
