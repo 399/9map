@@ -31,6 +31,8 @@ export default function BottomSheet({
         // If expanded, only allow drag on the handle area to avoid conflict with scrolling
         if (isExpanded) {
             const target = e.target as HTMLElement;
+            // Always prevent background map movement if touching ANYWHERE in the sheet
+            e.stopPropagation();
             if (!target.closest('.drag-handle-area')) return;
         }
 
@@ -240,6 +242,7 @@ export default function BottomSheet({
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
+                style={{ touchAction: isExpanded ? 'pan-y' : 'auto' }} // Stop horizontal gestures to map, allow vertical
             >
                 {children}
             </div>

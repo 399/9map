@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import PlaceSheet from '@/components/PlaceSheet';
-import FilterBar from '@/components/FilterBar';
 import ResultListSheet from '@/components/ResultListSheet';
 import { Place } from '@/types';
 import { Locate, ArrowLeft } from 'lucide-react';
@@ -83,14 +82,10 @@ function MapContent() {
         onUserLocationUpdate={setUserLocation}
       />
 
-      {/* Filter Bar */}
-      <FilterBar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-
       {/* Location Reset Button */}
-      {/* Moved up slightly to avoid bottom sheet collision if needed, but absolute positioning handles it */}
       <button
         onClick={handleResetLocation}
-        className="absolute bottom-[100px] right-4 z-10 w-12 h-12 bg-[#ffffff85] backdrop-blur-md rounded-full border border-white/50 shadow-soft-1 flex items-center justify-center hover:bg-white/80 transition-all duration-300 active:scale-95"
+        className="absolute bottom-[160px] right-4 z-10 w-12 h-12 bg-[#ffffff85] backdrop-blur-md rounded-full border border-white/50 shadow-soft-1 flex items-center justify-center hover:bg-white/80 transition-all duration-300 active:scale-95"
         aria-label="重置位置"
       >
         <Locate className="w-6 h-6 text-gray-700" />
@@ -102,6 +97,8 @@ function MapContent() {
           places={filteredPlaces}
           userLocation={userLocation}
           onPlaceClick={setSelectedPlace}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
         />
       )}
 

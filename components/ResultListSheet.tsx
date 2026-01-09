@@ -3,14 +3,23 @@ import { Place } from '@/types';
 import BottomSheet from './BottomSheet';
 import { getDistance } from 'geolib';
 import { Storefront, ForkKnife, Coffee, Hamburger } from '@phosphor-icons/react';
+import FilterBar from './FilterBar';
 
 interface ResultListSheetProps {
     places: Place[];
     userLocation: [number, number] | null;
     onPlaceClick: (place: Place) => void;
+    activeFilter: 'all' | 'restaurant' | 'drink';
+    onFilterChange: (filter: 'all' | 'restaurant' | 'drink') => void;
 }
 
-export default function ResultListSheet({ places, userLocation, onPlaceClick }: ResultListSheetProps) {
+export default function ResultListSheet({
+    places,
+    userLocation,
+    onPlaceClick,
+    activeFilter,
+    onFilterChange
+}: ResultListSheetProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     // Use a key to force reset state when places change, rather than useEffect
     // Or just let it be handled by logic. For 20 init doc, we can use a key on the container? 
@@ -97,14 +106,14 @@ export default function ResultListSheet({ places, userLocation, onPlaceClick }: 
             className="!z-[1000]" // Lower z-index than PlaceSheet (2000)
         >
             {/* Header / Handle */}
-            <div className="relative p-4 pb-2 flex-shrink-0 drag-handle-area">
+            <div className="relative pt-4 pb-2 flex-shrink-0 drag-handle-area">
                 {/* Handle Bar */}
-                <div className="absolute top-3 left-1/2 transform -translate-x-1/2 p-2">
-                    <div className="w-10 h-1 bg-gray-400/50 rounded-full" />
+                <div className="absolute top-3 left-1/2 transform -translate-x-1/2">
+                    <div className="w-10 h-1 bg-gray-400/30 rounded-full" />
                 </div>
 
                 {/* Title / Summary */}
-                <div className="mt-6 flex justify-between items-end">
+                <div className="mt-4 px-4 flex justify-between items-end">
                     <div>
                         <div className="text-[13px] text-gray-500 font-medium">共 {places.length} 个好去处</div>
                         <h2 className="text-[20px] font-bold text-gray-900 leading-tight">
@@ -115,6 +124,15 @@ export default function ResultListSheet({ places, userLocation, onPlaceClick }: 
                     <div className="text-[12px] text-gray-400 mb-1">
                         {userLocation ? '按距离排序' : '默认排序'}
                     </div>
+                </div>
+
+                {/* Filter Bar - Integrated and sticky-ready */}
+                <div className={`mt-3 px-4 pb-2 bg-transparent transition-all duration-300 ${isExpanded ? 'sticky top-0 z-30 pt-2' : ''}`}>
+                    <FilterBar
+                        activeFilter={activeFilter}
+                        onFilterChange={onFilterChange}
+                        className="!justify-start"
+                    />
                 </div>
             </div>
 
