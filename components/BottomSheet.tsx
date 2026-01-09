@@ -229,7 +229,7 @@ export default function BottomSheet({
                 ref={sheetRef}
                 className={`fixed z-[2000] shadow-soft-1 overflow-hidden flex flex-col transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
                     ${isExpanded
-                        ? 'inset-x-0 bottom-0 h-[95vh] rounded-t-2xl bg-[#ffffff85] backdrop-blur-md border-t border-white/50'
+                        ? 'inset-0 h-[100dvh] rounded-none bg-[#f5f5f5] backdrop-blur-none' /* Full screen, gray background like screenshot */
                         : 'left-4 right-4 bottom-6 rounded-card-lg max-h-[40vh] bg-[#ffffff85] backdrop-blur-md border border-white/50'
                     } ${className}`}
                 onTouchStart={handleTouchStart}

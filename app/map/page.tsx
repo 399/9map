@@ -93,12 +93,18 @@ function MapContent() {
         <Locate className="w-6 h-6 text-gray-700" />
       </button>
 
+      {/* Top Bar Background (Visible when list is expanded) */}
+      <div
+        className={`fixed top-0 left-0 right-0 h-[calc(3.5rem+env(safe-area-inset-top))] bg-white/95 backdrop-blur-md z-[1400] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] border-b border-gray-100 ${isListExpanded ? 'translate-y-0 opacity-100 shadow-sm' : '-translate-y-full opacity-0'
+          }`}
+      />
+
       {/* Filter Bar */}
       <FilterBar
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         className={`transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isListExpanded
-            ? 'top-[calc(1rem+env(safe-area-inset-top))] !bottom-auto' /* Move to top, align with back button */
+            ? 'top-[calc(1rem+env(safe-area-inset-top))] !bottom-auto !border-none !shadow-none !bg-transparent' /* Move to top, remove pill styles */
             : '' /* Default is bottom-[140px] from FilterBar component */
           }`}
       />

@@ -16,7 +16,7 @@ export default function FilterBar({ activeFilter, onFilterChange, className = ''
 
     return (
         <div className={`absolute bottom-[140px] left-0 right-0 flex justify-center gap-3 z-[1500] pointer-events-none ${className}`}>
-            <div className="flex bg-white/80 backdrop-blur-md rounded-full p-1.5 shadow-soft-1 pointer-events-auto border border-white/50">
+            <div className={`flex bg-white/80 backdrop-blur-md rounded-full p-1.5 shadow-soft-1 pointer-events-auto border border-white/50 transition-all duration-500 ${className.includes('!bg-transparent') ? '!bg-transparent !border-transparent !shadow-none' : ''}`}>
                 {filters.map((filter) => {
                     const isActive = activeFilter === filter.id;
                     return (

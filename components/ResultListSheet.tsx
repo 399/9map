@@ -105,9 +105,9 @@ export default function ResultListSheet({
             className={`!z-[1000] transition-all ${!isExpanded ? '!max-h-[110px]' : ''}`} // Lower z-index than PlaceSheet (2000), limit height when collapsed
         >
             {/* Header / Handle */}
-            <div className="relative pt-4 pb-2 flex-shrink-0 drag-handle-area">
-                {/* Handle Bar */}
-                <div className="absolute top-3 left-1/2 transform -translate-x-1/2">
+            <div className={`relative flex-shrink-0 drag-handle-area transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'pt-[calc(4rem+env(safe-area-inset-top))] pb-2' : 'pt-4 pb-2'}`}>
+                {/* Handle Bar - Hide when expanded to clean up */}
+                <div className={`absolute top-3 left-1/2 transform -translate-x-1/2 transition-opacity duration-300 ${isExpanded ? 'opacity-0' : 'opacity-100'}`}>
                     <div className="w-10 h-1 bg-gray-400/30 rounded-full" />
                 </div>
 
